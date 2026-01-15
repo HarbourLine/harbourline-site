@@ -1,0 +1,209 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Harbourline - CSV to Wise Converter</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>Harbourline CSV to Wise Converter</h1>
+            <p>Upload your CSV files to generate Wise payment uploads</p>
+        </header>
+
+        <div class="upload-section">
+            <form id="uploadForm" enctype="multipart/form-data">
+                <div class="file-group required">
+                    <label for="recipients">
+                        <span class="label-text">All-recipients.csv</span>
+                        <span class="required-badge">Required</span>
+                    </label>
+                    <div class="file-input-wrapper">
+                        <input type="file" id="recipients" name="recipients" accept=".csv" required>
+                        <span class="file-name">No file chosen</span>
+                    </div>
+                </div>
+
+                <div class="file-group required">
+                    <label for="tiktok">
+                        <span class="label-text">TikTokker info HQ-Payments View.csv</span>
+                        <span class="required-badge">Required</span>
+                    </label>
+                    <div class="file-input-wrapper">
+                        <input type="file" id="tiktok" name="tiktok" accept=".csv" required>
+                        <span class="file-name">No file chosen</span>
+                    </div>
+                </div>
+
+                <div class="file-group">
+                    <label for="ltd">
+                        <span class="label-text">LtdPayments.csv</span>
+                        <span class="optional-badge">Optional</span>
+                    </label>
+                    <div class="file-input-wrapper">
+                        <input type="file" id="ltd" name="ltd" accept=".csv">
+                        <span class="file-name">No file chosen</span>
+                    </div>
+                </div>
+
+                <div class="file-group">
+                    <label for="inc">
+                        <span class="label-text">IncPayments.csv</span>
+                        <span class="optional-badge">Optional</span>
+                    </label>
+                    <div class="file-input-wrapper">
+                        <input type="file" id="inc" name="inc" accept=".csv">
+                        <span class="file-name">No file chosen</span>
+                    </div>
+                </div>
+
+                <p class="note">Note: Upload at least one payment file (Ltd or Inc)</p>
+
+                <button type="submit" id="submitBtn" class="btn-primary">
+                    Process Files
+                </button>
+            </form>
+        </div>
+
+        <div id="loadingSection" class="loading-section hidden">
+            <div class="spinner"></div>
+            <p>Processing your files...</p>
+        </div>
+
+        <div id="resultsSection" class="results-section hidden">
+            <h2>Processing Complete</h2>
+            <div id="resultsSummary"></div>
+            <button id="downloadBtn" class="btn-success">
+                Download All Files
+            </button>
+            <button id="resetBtn" class="btn-secondary">
+                Process More Files
+            </button>
+        </div>
+
+        <div id="errorSection" class="error-section hidden">
+            <h2>Error</h2>
+            <p id="errorMessage"></p>
+            <button id="errorResetBtn" class="btn-secondary">
+                Try Again
+            </button>
+        </div>
+    </div>
+
+    <script>
+        // File input handling
+        document.querySelectorAll('input[type="file"]').forEach(input => {
+            input.addEventListener('change', function() {
+                const fileName = this.files[0] ? this.files[0].name : 'No file chosen';
+                const fileNameSpan = this.parentElement.querySelector('.file-name');
+                fileNameSpan.textContent = fileName;
+                fileNameSpan.classList.toggle('has-file', this.files[0]);
+            });
+        });
+
+        // Form submission
+        document.getElementById('uploadForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+
+            const form = e.target;
+            const formData = new FormData(form);
+
+            // Validate at least one payment file
+            const ltdFile = document.getElementById('ltd').files[0];
+            const incFile = document.getElementById('inc').files[0];
+
+            if (!ltdFile && !incFile) {
+                showError('Please upload at least one payment file (Ltd or Inc)');
+                return;
+            }
+
+            // Show loading
+            document.querySelector('.upload-section').classList.add('hidden');
+            document.getElementById('loadingSection').classList.remove('hidden');
+            document.getElementById('errorSection').classList.add('hidden');
+            document.getElementById('resultsSection').classList.add('hidden');
+
+            try {
+                const response = await fetch('/process', {
+                    method: 'POST',
+                    body: formData
+                });
+
+                const data = await response.json();
+
+                if (response.ok) {
+                    showResults(data.results);
+                } else {
+                    showError(data.error || 'An error occurred processing your files');
+                }
+            } catch (error) {
+                showError('Network error: ' + error.message);
+            }
+        });
+
+        function showResults(results) {
+            document.getElementById('loadingSection').classList.add('hidden');
+            document.getElementById('resultsSection').classList.remove('hidden');
+
+            let summaryHTML = '';
+            results.forEach(result => {
+                summaryHTML += `
+                    <div class="result-card">
+                        <h3>${result.company}</h3>
+                        <div class="stats">
+                            <div class="stat">
+                                <span class="stat-label">Matched</span>
+                                <span class="stat-value success">${result.matched_count}</span>
+                            </div>
+                            <div class="stat">
+                                <span class="stat-label">Unmatched</span>
+                                <span class="stat-value warning">${result.unmatched_count}</span>
+                            </div>
+                            <div class="stat">
+                                <span class="stat-label">Missing in TikTokker</span>
+                                <span class="stat-value error">${result.missing_count}</span>
+                            </div>
+                        </div>
+                        <div class="files-generated">
+                            <strong>Files generated:</strong>
+                            <ul>
+                                ${result.files.map(f => `<li>${f}</li>`).join('')}
+                            </ul>
+                        </div>
+                    </div>
+                `;
+            });
+
+            document.getElementById('resultsSummary').innerHTML = summaryHTML;
+        }
+
+        function showError(message) {
+            document.getElementById('loadingSection').classList.add('hidden');
+            document.getElementById('errorSection').classList.remove('hidden');
+            document.getElementById('errorMessage').textContent = message;
+        }
+
+        function resetForm() {
+            document.querySelector('.upload-section').classList.remove('hidden');
+            document.getElementById('resultsSection').classList.add('hidden');
+            document.getElementById('errorSection').classList.add('hidden');
+            document.getElementById('uploadForm').reset();
+            document.querySelectorAll('.file-name').forEach(span => {
+                span.textContent = 'No file chosen';
+                span.classList.remove('has-file');
+            });
+        }
+
+        // Download button
+        document.getElementById('downloadBtn').addEventListener('click', () => {
+            window.location.href = '/download';
+        });
+
+        // Reset buttons
+        document.getElementById('resetBtn').addEventListener('click', resetForm);
+        document.getElementById('errorResetBtn').addEventListener('click', resetForm);
+    </script>
+</body>
+</html>
