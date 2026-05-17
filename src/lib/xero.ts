@@ -9,12 +9,12 @@ const CONNECTIONS_URL = "https://api.xero.com/connections";
 const API_BASE = "https://api.xero.com/api.xro/2.0";
 
 export const XERO_SCOPES = [
+  "offline_access",
   "openid",
   "profile",
   "email",
-  "offline_access",
-  "accounting.transactions.read",
-  "accounting.contacts.read",
+  "accounting.transactions",
+  "accounting.contacts",
 ].join(" ");
 
 function requireEnv(name: string): string {
