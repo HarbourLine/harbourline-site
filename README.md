@@ -1,4 +1,4 @@
-# HarbourLine — Time vs Billing
+# ASBK — Time vs Billing
 
 Reconcile **MyHours** tracked time against **Xero** invoiced amounts, per client, per month.
 
@@ -33,7 +33,7 @@ npm run dev
 ### Xero developer app
 
 1. Sign in at https://developer.xero.com → **My Apps** → **New app**
-2. Name: `HarbourLine Time Reconciliation`
+2. Name: `ASBK Time Reconciliation`
 3. Integration type: **Web app**
 4. Company URL: anything (e.g. your site)
 5. Redirect URI: `http://localhost:3000/api/xero/callback` (add prod URL later)
