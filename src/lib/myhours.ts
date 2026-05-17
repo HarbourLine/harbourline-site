@@ -61,11 +61,28 @@ export interface MyHoursLog {
 
 // ---- Public surface ----
 
-// Confirmed endpoint via the MyHours web app: GET /api/clients/getall
-// Response shape is best-effort; we accept either an array of objects with
-// id/name or a wrapped form, and filter out archived clients.
+// /clients/getall returns 400 ("getall is not valid") on MyHours v2 — that
+// route segment is parsed as a numeric id. The web app uses
+// /clients/getallforfilters for the picker list. Try that first, then a
+// couple of likely fallbacks before giving up.
 export async function listClients(): Promise<MyHoursClient[]> {
-  const raw = await get<unknown>("/clients/getall");
+  const candidates = ["/clients/getallforfilters", "/clients/getAll", "/clients"];
+  let raw: unknown = null;
+  let lastError: unknown = null;
+  for (const path of candidates) {
+    try {
+      raw = await get<unknown>(path);
+      console.log(`[myhours] listClients using ${path}`);
+      break;
+    } catch (e) {
+      lastError = e;
+      console.log(
+        `[myhours] listClients ${path} failed: ${e instanceof Error ? e.message.slice(0, 160) : String(e)}`,
+      );
+    }
+  }
+  if (raw == null) throw lastError ?? new Error("All clients endpoints failed");
+
   const arr = Array.isArray(raw) ? raw : [];
   return arr
     .map((c) => {
