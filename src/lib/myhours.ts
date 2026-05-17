@@ -78,56 +78,28 @@ export async function listProjects(): Promise<MyHoursProject[]> {
 // behind auth so we don't know the canonical form. The first non-empty result
 // wins; the rest is logged for diagnostics.
 export async function listLogs(from: string, to: string): Promise<MyHoursLog[]> {
-  // MyHours has shown a `/Projects/getAll` style endpoint in third-party
-  // connectors, so the listing endpoints likely use that RPC suffix.
-  // We try several known shapes; first non-empty wins. We also probe
-  // /Clients and /Projects (which should always be non-empty for a working
-  // account) to verify auth is good in isolation.
-  const sanityProbes = [
-    { path: "/clients/getall", params: {} },
-    { path: "/projects/getall", params: {} },
-    { path: "/teams/getall", params: {} },
-    { path: "/Clients/getAll", params: {} },
-    { path: "/Projects/getAll", params: {} },
-  ];
-  for (const { path, params } of sanityProbes) {
-    try {
-      const result = await get<unknown>(path, params);
-      const count = Array.isArray(result) ? result.length : -1;
-      console.log(
-        `[myhours] sanity ${path} -> ${count === -1 ? "non-array" : count + " items"}`,
-      );
-    } catch (e) {
-      const msg = e instanceof Error ? e.message.slice(0, 160) : String(e);
-      console.log(`[myhours] sanity ${path} -> ERROR: ${msg}`);
-    }
+  // Confirmed endpoint via MyHours' own web app:
+  //   GET /api/logs/getallbetweendates?dateFrom=YYYY-MM-DD&dateTo=YYYY-MM-DD&localDate=ISO8601
+  // localDate appears to be informational (web app passes its current wall
+  // clock with TZ offset); not strictly required but we send it for parity.
+  const localDate = new Date().toISOString();
+  const result = await get<unknown>("/logs/getallbetweendates", {
+    dateFrom: from,
+    dateTo: to,
+    localDate,
+  });
+  if (!Array.isArray(result)) {
+    console.log("[myhours] logs response was not an array; got:", typeof result);
+    return [];
   }
-
-  const candidates: Array<{ path: string; params: Record<string, string> }> = [
-    { path: "/logs/getall", params: { from, to } },
-    { path: "/logs/getall", params: { dateFrom: from, dateTo: to } },
-    { path: "/logs/getall", params: {} },
-    { path: "/timelogs/getall", params: { from, to } },
-    { path: "/timelogs/getall", params: {} },
-    { path: "/logs/getbydaterange", params: { dateFrom: from, dateTo: to } },
-    { path: "/logs/getbydaterange", params: { from, to } },
-    { path: "/reports/logs", params: { from, to } },
-    { path: "/reports/timelogs", params: { from, to } },
-  ];
-  for (const { path, params } of candidates) {
-    try {
-      const result = await get<unknown>(path, params);
-      const count = Array.isArray(result) ? result.length : -1;
-      console.log(
-        `[myhours] probe ${path} params=${JSON.stringify(params)} -> ${count === -1 ? "non-array" : count + " items"}`,
-      );
-      if (Array.isArray(result) && result.length > 0) return result as MyHoursLog[];
-    } catch (e) {
-      const msg = e instanceof Error ? e.message.slice(0, 160) : String(e);
-      console.log(`[myhours] probe ${path} params=${JSON.stringify(params)} -> ERROR: ${msg}`);
-    }
+  // Temporary: log the first item's keys so we can confirm the field shape
+  // (clientId vs client.id vs project.client.id, durationSeconds vs duration, etc.)
+  if (result.length > 0) {
+    const sample = result[0] as Record<string, unknown>;
+    console.log("[myhours] sample log keys:", Object.keys(sample).join(", "));
+    console.log("[myhours] sample log JSON:", JSON.stringify(sample).slice(0, 600));
   }
-  return [];
+  return result as MyHoursLog[];
 }
 
 // Convenience: month range in UTC.
