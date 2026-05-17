@@ -99,11 +99,17 @@ export async function listLogs(from: string, to: string): Promise<MyHoursLog[]> 
   // Confirmed via the MyHours web app:
   //   GET /api/logs/getallbetweendates?dateFrom=YYYY-MM-DD&dateTo=YYYY-MM-DD&localDate=ISO8601
   // localDate is informational; the API accepts UTC or a TZ offset.
-  return get<MyHoursLog[]>("/logs/getallbetweendates", {
+  const result = await get<MyHoursLog[]>("/logs/getallbetweendates", {
     dateFrom: from,
     dateTo: to,
     localDate: new Date().toISOString(),
   });
+  // Diagnostic: tell us if we're getting team-wide data or just one user's.
+  const userIds = new Set(result.map((l) => l.userId).filter((id) => id != null));
+  console.log(
+    `[myhours] listLogs ${from}..${to}: ${result.length} entries from ${userIds.size} user(s) — userIds=${[...userIds].join(",")}`,
+  );
+  return result;
 }
 
 // Convenience: month range in UTC.
