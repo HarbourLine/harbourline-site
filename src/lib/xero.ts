@@ -21,14 +21,19 @@ function requireEnv(name: string): string {
 }
 
 export function buildAuthUrl(state: string): string {
-  const params = new URLSearchParams({
-    response_type: "code",
-    client_id: requireEnv("XERO_CLIENT_ID"),
-    redirect_uri: requireEnv("XERO_REDIRECT_URI"),
-    scope: XERO_SCOPES,
-    state,
-  });
-  return `${AUTH_URL}?${params.toString()}`;
+  // Build manually rather than URLSearchParams: the latter encodes spaces
+  // as `+`, but Xero's authorize endpoint requires `%20` between scope
+  // values — otherwise it treats the whole thing as one bogus scope.
+  const params = [
+    ["response_type", "code"],
+    ["client_id", requireEnv("XERO_CLIENT_ID")],
+    ["redirect_uri", requireEnv("XERO_REDIRECT_URI")],
+    ["scope", XERO_SCOPES],
+    ["state", state],
+  ]
+    .map(([k, v]) => `${encodeURIComponent(k)}=${encodeURIComponent(v)}`)
+    .join("&");
+  return `${AUTH_URL}?${params}`;
 }
 
 interface TokenResponse {
