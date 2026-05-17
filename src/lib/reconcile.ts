@@ -11,7 +11,7 @@ export interface ReconcileRow {
   billableHours: number;
   hourlyRate: number | null;
   impliedAmount: number | null; // billableHours * hourlyRate when known
-  invoicedAmount: number; // sum of Xero ACCREC invoice totals (ex tax)
+  invoicedAmount: number; // sum of Xero ACCREC invoice subtotals (ex VAT)
   invoiceCount: number;
   variance: number | null; // invoicedAmount - impliedAmount
   status: "matched" | "unmapped" | "no-time" | "no-invoice";
@@ -72,7 +72,7 @@ export async function reconcileMonth(year: number, month: number): Promise<Recon
   for (const inv of invoices) {
     const contactId = inv.Contact.ContactID;
     const existing = byContact.get(contactId);
-    const amount = inv.SubTotal ?? 0; // ex tax
+    const amount = inv.SubTotal ?? 0; // ex VAT
     if (existing) {
       existing.invoiced += amount;
       existing.count += 1;

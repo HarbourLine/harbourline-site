@@ -113,8 +113,8 @@ function ResultsTable({ result }: { result: ReconcileResult }) {
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
         <Stat label="Hours tracked" value={fmtHrs(result.totals.hours)} />
         <Stat label="Billable hours" value={fmtHrs(result.totals.billableHours)} />
-        <Stat label="Implied $ (ex tax)" value={fmtMoney(result.totals.impliedAmount)} />
-        <Stat label="Invoiced $ (ex tax)" value={fmtMoney(result.totals.invoicedAmount)} />
+        <Stat label="Implied £ (ex VAT)" value={fmtMoney(result.totals.impliedAmount)} />
+        <Stat label="Invoiced £ (ex VAT)" value={fmtMoney(result.totals.invoicedAmount)} />
       </div>
 
       <div className="overflow-x-auto rounded-lg border border-black/10 dark:border-white/10">
@@ -125,8 +125,8 @@ function ResultsTable({ result }: { result: ReconcileResult }) {
               <Th align="right">Hours</Th>
               <Th align="right">Billable</Th>
               <Th align="right">Rate</Th>
-              <Th align="right">Implied $</Th>
-              <Th align="right">Invoiced $</Th>
+              <Th align="right">Implied £</Th>
+              <Th align="right">Invoiced £</Th>
               <Th align="right">Invoices</Th>
               <Th align="right">Variance</Th>
               <Th>Status</Th>
