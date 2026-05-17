@@ -95,21 +95,72 @@ export async function listClients(): Promise<MyHoursClient[]> {
     .filter((c) => c.name && !c.archived);
 }
 
-export async function listLogs(from: string, to: string): Promise<MyHoursLog[]> {
-  // Confirmed via the MyHours web app:
-  //   GET /api/logs/getallbetweendates?dateFrom=YYYY-MM-DD&dateTo=YYYY-MM-DD&localDate=ISO8601
-  // localDate is informational; the API accepts UTC or a TZ offset.
-  const result = await get<MyHoursLog[]>("/logs/getallbetweendates", {
+// MyHours' personal API key scopes /logs/getallbetweendates to the holder
+// only. To get team-wide data we enumerate users and fetch per user, then
+// merge by log id (which dedupes if the API ignores the userId param).
+async function fetchLogsForUser(
+  from: string,
+  to: string,
+  userId?: number,
+): Promise<MyHoursLog[]> {
+  const params: Record<string, string> = {
     dateFrom: from,
     dateTo: to,
     localDate: new Date().toISOString(),
-  });
-  // Diagnostic: tell us if we're getting team-wide data or just one user's.
-  const userIds = new Set(result.map((l) => l.userId).filter((id) => id != null));
-  console.log(
-    `[myhours] listLogs ${from}..${to}: ${result.length} entries from ${userIds.size} user(s) — userIds=${[...userIds].join(",")}`,
+  };
+  if (userId != null) params.userId = String(userId);
+  return get<MyHoursLog[]>("/logs/getallbetweendates", params);
+}
+
+async function listUsers(): Promise<{ id: number; name: string }[]> {
+  const raw = await get<unknown>("/users/getall");
+  const arr = Array.isArray(raw) ? raw : [];
+  return arr
+    .map((u) => {
+      const obj = u as Record<string, unknown>;
+      const id = Number(obj.id ?? obj.Id ?? 0);
+      const name = String(obj.name ?? obj.Name ?? obj.fullName ?? obj.email ?? "").trim();
+      return { id, name };
+    })
+    .filter((u) => u.id > 0);
+}
+
+export async function listLogs(from: string, to: string): Promise<MyHoursLog[]> {
+  let users: { id: number; name: string }[] = [];
+  try {
+    users = await listUsers();
+  } catch (e) {
+    console.log(
+      `[myhours] listUsers failed (${e instanceof Error ? e.message.slice(0, 160) : String(e)}); falling back to single-user fetch`,
+    );
+  }
+
+  if (users.length === 0) {
+    return fetchLogsForUser(from, to);
+  }
+
+  const merged = new Map<number, MyHoursLog>();
+  const perUserCounts: string[] = [];
+  await Promise.all(
+    users.map(async (u) => {
+      try {
+        const batch = await fetchLogsForUser(from, to, u.id);
+        perUserCounts.push(`${u.name || u.id}=${batch.length}`);
+        for (const log of batch) merged.set(log.id, log);
+      } catch (e) {
+        perUserCounts.push(
+          `${u.name || u.id}=ERR(${e instanceof Error ? e.message.slice(0, 80) : "?"})`,
+        );
+      }
+    }),
   );
-  return result;
+
+  const all = [...merged.values()];
+  const distinctUsers = new Set(all.map((l) => l.userId));
+  console.log(
+    `[myhours] listLogs ${from}..${to}: ${all.length} entries from ${distinctUsers.size} distinct user(s) after merge across ${users.length} queried users (${perUserCounts.join(", ")})`,
+  );
+  return all;
 }
 
 // Convenience: month range in UTC.
