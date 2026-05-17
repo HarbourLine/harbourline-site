@@ -84,10 +84,11 @@ export async function listLogs(from: string, to: string): Promise<MyHoursLog[]> 
   // /Clients and /Projects (which should always be non-empty for a working
   // account) to verify auth is good in isolation.
   const sanityProbes = [
+    { path: "/clients/getall", params: {} },
+    { path: "/projects/getall", params: {} },
+    { path: "/teams/getall", params: {} },
     { path: "/Clients/getAll", params: {} },
     { path: "/Projects/getAll", params: {} },
-    { path: "/Clients", params: {} },
-    { path: "/Projects", params: {} },
   ];
   for (const { path, params } of sanityProbes) {
     try {
@@ -103,15 +104,15 @@ export async function listLogs(from: string, to: string): Promise<MyHoursLog[]> 
   }
 
   const candidates: Array<{ path: string; params: Record<string, string> }> = [
-    { path: "/Logs/getAll", params: { from, to } },
-    { path: "/Logs/getAll", params: { dateFrom: from, dateTo: to } },
-    { path: "/Logs/getAll", params: {} },
-    { path: "/TimeLogs/getAll", params: { from, to } },
-    { path: "/TimeLogs/getAll", params: {} },
-    { path: "/Reports/Logs", params: { from, to } },
-    { path: "/Reports/TimeLogs", params: { from, to } },
-    { path: "/Logs/byDateRange", params: { from, to } },
-    { path: "/Logs/getByDateRange", params: { from, to } },
+    { path: "/logs/getall", params: { from, to } },
+    { path: "/logs/getall", params: { dateFrom: from, dateTo: to } },
+    { path: "/logs/getall", params: {} },
+    { path: "/timelogs/getall", params: { from, to } },
+    { path: "/timelogs/getall", params: {} },
+    { path: "/logs/getbydaterange", params: { dateFrom: from, dateTo: to } },
+    { path: "/logs/getbydaterange", params: { from, to } },
+    { path: "/reports/logs", params: { from, to } },
+    { path: "/reports/timelogs", params: { from, to } },
   ];
   for (const { path, params } of candidates) {
     try {
