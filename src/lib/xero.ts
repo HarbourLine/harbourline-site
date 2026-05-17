@@ -164,6 +164,44 @@ export async function getActiveConnection() {
   return conn;
 }
 
+interface XeroContact {
+  ContactID: string;
+  Name: string;
+  ContactStatus?: string;
+}
+
+interface XeroContactsResponse {
+  Contacts: XeroContact[];
+}
+
+// Fetch all ACTIVE contacts (paginated, up to 100 per page). Used to populate
+// the mapping picker.
+export async function fetchActiveContacts(): Promise<{ id: string; name: string }[]> {
+  const conn = await getActiveConnection();
+  if (!conn) throw new Error("No Xero connection");
+  const all: XeroContact[] = [];
+  let page = 1;
+  while (true) {
+    const url = `${API_BASE}/Contacts?where=${encodeURIComponent('ContactStatus=="ACTIVE"')}&page=${page}&order=Name`;
+    const res = await fetch(url, {
+      headers: {
+        Authorization: `Bearer ${conn.accessToken}`,
+        "Xero-Tenant-Id": conn.tenantId,
+        Accept: "application/json",
+      },
+    });
+    if (!res.ok) {
+      throw new Error(`Xero contacts fetch failed: ${res.status} ${await res.text()}`);
+    }
+    const data: XeroContactsResponse = await res.json();
+    const batch = data.Contacts ?? [];
+    all.push(...batch);
+    if (batch.length < 100) break;
+    page += 1;
+  }
+  return all.map((c) => ({ id: c.ContactID, name: c.Name }));
+}
+
 interface XeroInvoice {
   InvoiceID: string;
   InvoiceNumber?: string;

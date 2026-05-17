@@ -30,16 +30,8 @@ async function get<T>(path: string, params?: Record<string, string>): Promise<T>
 }
 
 export interface MyHoursClient {
-  id: number | string;
+  id: number;
   name: string;
-  archived?: boolean;
-}
-
-export interface MyHoursProject {
-  id: number | string;
-  name: string;
-  clientId?: number | string | null;
-  clientName?: string | null;
   archived?: boolean;
 }
 
@@ -69,21 +61,23 @@ export interface MyHoursLog {
 
 // ---- Public surface ----
 
+// Confirmed endpoint via the MyHours web app: GET /api/clients/getall
+// Response shape is best-effort; we accept either an array of objects with
+// id/name or a wrapped form, and filter out archived clients.
 export async function listClients(): Promise<MyHoursClient[]> {
-  // TODO: confirm exact endpoint path against the live API.
-  return get<MyHoursClient[]>("/Clients");
+  const raw = await get<unknown>("/clients/getall");
+  const arr = Array.isArray(raw) ? raw : [];
+  return arr
+    .map((c) => {
+      const obj = c as Record<string, unknown>;
+      const id = Number(obj.id ?? obj.Id ?? 0);
+      const name = String(obj.name ?? obj.Name ?? "").trim();
+      const archived = Boolean(obj.archived ?? obj.Archived ?? false);
+      return { id, name, archived };
+    })
+    .filter((c) => c.name && !c.archived);
 }
 
-export async function listProjects(): Promise<MyHoursProject[]> {
-  return get<MyHoursProject[]>("/Projects");
-}
-
-// Fetch all time logs in the given inclusive date range (YYYY-MM-DD strings).
-// Aggregation is done by the caller (reconcile.ts) so we keep this raw.
-// We probe several known/likely endpoint+param combinations until one returns
-// data — MyHours has changed shape over versions and the public docs are
-// behind auth so we don't know the canonical form. The first non-empty result
-// wins; the rest is logged for diagnostics.
 export async function listLogs(from: string, to: string): Promise<MyHoursLog[]> {
   // Confirmed via the MyHours web app:
   //   GET /api/logs/getallbetweendates?dateFrom=YYYY-MM-DD&dateTo=YYYY-MM-DD&localDate=ISO8601
