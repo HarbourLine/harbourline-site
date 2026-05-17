@@ -4,7 +4,7 @@ import { deleteMapping, upsertMapping } from "./actions";
 export const dynamic = "force-dynamic";
 
 export default async function MappingsPage() {
-  const mappings = await prisma.clientMapping.findMany({ orderBy: { myHoursName: "asc" } });
+  const mappings = await prisma.clientMapping.findMany({ orderBy: { myHoursClientName: "asc" } });
 
   return (
     <div className="space-y-6">
@@ -19,8 +19,7 @@ export default async function MappingsPage() {
       <section className="rounded-lg border border-black/10 dark:border-white/10 p-4">
         <h2 className="font-medium mb-3">Add / update mapping</h2>
         <form action={upsertMapping} className="grid gap-3 sm:grid-cols-2">
-          <Field name="myHoursClientId" label="MyHours client ID" required />
-          <Field name="myHoursName" label="MyHours client name" />
+          <Field name="myHoursClientName" label="MyHours client name" required />
           <Field name="xeroContactId" label="Xero contact ID (GUID)" required />
           <Field name="xeroContactName" label="Xero contact name" />
           <Field name="hourlyRate" label="Hourly rate (optional)" type="number" step="0.01" />
@@ -34,8 +33,9 @@ export default async function MappingsPage() {
           </div>
         </form>
         <p className="text-xs opacity-60 mt-3">
-          For now, paste IDs manually. A picker UI that lists clients/contacts from each API is on the
-          to-do list.
+          MyHours doesn&apos;t expose a stable client ID on time entries, so we key off the client
+          name (must match exactly what appears in MyHours). Xero contact ID is the GUID from
+          Xero&apos;s Contacts page URL. A picker UI is on the to-do list.
         </p>
       </section>
 
@@ -58,8 +58,7 @@ export default async function MappingsPage() {
                 {mappings.map((m) => (
                   <tr key={m.id} className="border-t border-black/5 dark:border-white/5">
                     <td className="px-3 py-2">
-                      <div>{m.myHoursName || <span className="opacity-50">(no name)</span>}</div>
-                      <div className="text-xs opacity-50 font-mono">{m.myHoursClientId}</div>
+                      <div>{m.myHoursClientName}</div>
                     </td>
                     <td className="px-3 py-2">
                       <div>{m.xeroContactName || <span className="opacity-50">(no name)</span>}</div>

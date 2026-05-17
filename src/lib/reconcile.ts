@@ -3,9 +3,9 @@ import * as mh from "./myhours";
 import * as xero from "./xero";
 
 export interface ReconcileRow {
-  // Display name: prefers the mapped Xero contact name; falls back to MyHours name; "(unassigned)" for null clients.
+  // Display name: prefers the mapped Xero contact name; falls back to MyHours client name.
   clientName: string;
-  myHoursClientId: string | null;
+  myHoursClientName: string | null;
   xeroContactId: string | null;
   hours: number;
   billableHours: number;
@@ -32,6 +32,8 @@ export interface ReconcileResult {
   unmatchedXeroContacts: { contactId: string; name: string; invoicedAmount: number }[];
 }
 
+const UNASSIGNED = "(unassigned)";
+
 export async function reconcileMonth(year: number, month: number): Promise<ReconcileResult> {
   const defaultRate = Number(process.env.DEFAULT_HOURLY_RATE ?? 0);
   const range = mh.monthRange(year, month);
@@ -42,28 +44,26 @@ export async function reconcileMonth(year: number, month: number): Promise<Recon
     prisma.clientMapping.findMany(),
   ]);
 
-  const mappingByMyHours = new Map(mappings.map((m) => [String(m.myHoursClientId), m]));
+  // Mappings are keyed by MyHours client name (since MyHours' log API
+  // doesn't expose a client ID per entry).
+  const mappingByName = new Map(mappings.map((m) => [m.myHoursClientName, m]));
   const mappingByXero = new Map(mappings.map((m) => [m.xeroContactId, m]));
 
-  // Aggregate MyHours by client.
-  type Agg = { hours: number; billableHours: number; name: string; id: string | null };
+  // Aggregate MyHours logs by client name.
+  type Agg = { hours: number; billableHours: number; name: string };
   const byClient = new Map<string, Agg>();
   for (const log of logs) {
-    const key = log.clientId == null ? "__unassigned__" : String(log.clientId);
-    const name = log.clientName ?? "(unassigned)";
-    const hours = (log.durationSeconds ?? 0) / 3600;
-    const billable = log.billable !== false ? hours : 0;
-    const existing = byClient.get(key);
+    const name = log.clientName ?? UNASSIGNED;
+    const hours = (log.duration ?? 0) / 3600;
+    const billableHours = log.billable
+      ? (log.billableHours ?? hours)
+      : 0;
+    const existing = byClient.get(name);
     if (existing) {
       existing.hours += hours;
-      existing.billableHours += billable;
+      existing.billableHours += billableHours;
     } else {
-      byClient.set(key, {
-        hours,
-        billableHours: billable,
-        name,
-        id: log.clientId == null ? null : String(log.clientId),
-      });
+      byClient.set(name, { hours, billableHours, name });
     }
   }
 
@@ -84,8 +84,8 @@ export async function reconcileMonth(year: number, month: number): Promise<Recon
   const rows: ReconcileRow[] = [];
   const seenXeroContacts = new Set<string>();
 
-  for (const [, agg] of byClient) {
-    const mapping = agg.id ? mappingByMyHours.get(agg.id) : undefined;
+  for (const [name, agg] of byClient) {
+    const mapping = mappingByName.get(name);
     const xeroContactId = mapping?.xeroContactId ?? null;
     const xeroAgg = xeroContactId ? byContact.get(xeroContactId) : undefined;
     if (xeroContactId) seenXeroContacts.add(xeroContactId);
@@ -102,7 +102,7 @@ export async function reconcileMonth(year: number, month: number): Promise<Recon
 
     rows.push({
       clientName: mapping?.xeroContactName ?? agg.name,
-      myHoursClientId: agg.id,
+      myHoursClientName: agg.name === UNASSIGNED ? null : agg.name,
       xeroContactId,
       hours: round(agg.hours),
       billableHours: round(agg.billableHours),
@@ -124,7 +124,7 @@ export async function reconcileMonth(year: number, month: number): Promise<Recon
       // Mapped, but the MyHours side had no logs this month.
       rows.push({
         clientName: mapping.xeroContactName,
-        myHoursClientId: mapping.myHoursClientId,
+        myHoursClientName: mapping.myHoursClientName,
         xeroContactId: contactId,
         hours: 0,
         billableHours: 0,

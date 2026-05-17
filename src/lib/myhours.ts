@@ -22,13 +22,11 @@ async function get<T>(path: string, params?: Record<string, string>): Promise<T>
     },
     cache: "no-store",
   });
-  const bodyText = await res.text();
-  console.log(`[myhours] GET ${url.toString()} -> ${res.status}`);
-  console.log(`[myhours]   body (first 400 chars): ${bodyText.slice(0, 400)}`);
   if (!res.ok) {
+    const bodyText = await res.text();
     throw new Error(`MyHours ${path} failed: ${res.status} ${bodyText}`);
   }
-  return JSON.parse(bodyText) as T;
+  return res.json() as Promise<T>;
 }
 
 export interface MyHoursClient {
@@ -45,19 +43,28 @@ export interface MyHoursProject {
   archived?: boolean;
 }
 
-// A single time log entry. MyHours typically expresses duration in seconds.
+// A single time log entry as returned by /logs/getallbetweendates.
+// Note: MyHours doesn't expose a client ID on log entries — only the name.
+// `duration` is in SECONDS; `billableHours` is in hours.
 export interface MyHoursLog {
-  id: number | string;
-  date: string; // YYYY-MM-DD
-  durationSeconds: number;
-  billable?: boolean;
-  clientId?: number | string | null;
-  clientName?: string | null;
-  projectId?: number | string | null;
-  projectName?: string | null;
-  userId?: number | string | null;
-  userName?: string | null;
-  note?: string | null;
+  id: number;
+  date: string; // "YYYY-MM-DDT00:00:00"
+  duration: number; // seconds
+  billable: boolean;
+  billableHours: number; // hours (pre-computed by MyHours)
+  billableDuration: number; // seconds
+  clientName: string | null;
+  projectName: string | null;
+  projectId: number;
+  taskName: string | null;
+  taskId: number;
+  userId: number;
+  note: string | null;
+  rate: number;
+  amount: number;
+  billableAmount: number;
+  status: number;
+  invoiceId: number;
 }
 
 // ---- Public surface ----
@@ -78,28 +85,14 @@ export async function listProjects(): Promise<MyHoursProject[]> {
 // behind auth so we don't know the canonical form. The first non-empty result
 // wins; the rest is logged for diagnostics.
 export async function listLogs(from: string, to: string): Promise<MyHoursLog[]> {
-  // Confirmed endpoint via MyHours' own web app:
+  // Confirmed via the MyHours web app:
   //   GET /api/logs/getallbetweendates?dateFrom=YYYY-MM-DD&dateTo=YYYY-MM-DD&localDate=ISO8601
-  // localDate appears to be informational (web app passes its current wall
-  // clock with TZ offset); not strictly required but we send it for parity.
-  const localDate = new Date().toISOString();
-  const result = await get<unknown>("/logs/getallbetweendates", {
+  // localDate is informational; the API accepts UTC or a TZ offset.
+  return get<MyHoursLog[]>("/logs/getallbetweendates", {
     dateFrom: from,
     dateTo: to,
-    localDate,
+    localDate: new Date().toISOString(),
   });
-  if (!Array.isArray(result)) {
-    console.log("[myhours] logs response was not an array; got:", typeof result);
-    return [];
-  }
-  // Temporary: log the first item's keys so we can confirm the field shape
-  // (clientId vs client.id vs project.client.id, durationSeconds vs duration, etc.)
-  if (result.length > 0) {
-    const sample = result[0] as Record<string, unknown>;
-    console.log("[myhours] sample log keys:", Object.keys(sample).join(", "));
-    console.log("[myhours] sample log JSON:", JSON.stringify(sample).slice(0, 600));
-  }
-  return result as MyHoursLog[];
 }
 
 // Convenience: month range in UTC.

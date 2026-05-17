@@ -21,15 +21,15 @@ model XeroConnection {
   updatedAt     DateTime @updatedAt
 }
 
-// Map a MyHours client (by id) to a Xero contact (by id). Optional per-mapping
-// hourly rate overrides DEFAULT_HOURLY_RATE for that client.
+// Map a MyHours client (keyed by name, since MyHours' log API does not
+// expose a client ID per entry) to a Xero contact (by GUID id). Optional
+// per-mapping hourly rate overrides DEFAULT_HOURLY_RATE for that client.
 model ClientMapping {
-  id              String   @id @default(cuid())
-  myHoursClientId String   @unique
-  myHoursName     String
-  xeroContactId   String
-  xeroContactName String
-  hourlyRate      Float?
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
+  id                String   @id @default(cuid())
+  myHoursClientName String   @unique
+  xeroContactId     String
+  xeroContactName   String
+  hourlyRate        Float?
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
 }
