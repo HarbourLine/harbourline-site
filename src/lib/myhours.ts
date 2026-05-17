@@ -16,10 +16,10 @@ async function get<T>(path: string, params?: Record<string, string>): Promise<T>
   if (params) for (const [k, v] of Object.entries(params)) url.searchParams.set(k, v);
   const res = await fetch(url, {
     headers: {
-      Authorization: `Bearer ${requireKey()}`,
+      // MyHours uses the literal prefix "apikey", not "Bearer".
+      Authorization: `apikey ${requireKey()}`,
       Accept: "application/json",
     },
-    // Avoid Next.js fetch caching for live data.
     cache: "no-store",
   });
   if (!res.ok) {
