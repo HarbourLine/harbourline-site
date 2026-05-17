@@ -44,8 +44,7 @@ export default async function MappingsPage() {
       <header>
         <h1 className="text-2xl font-semibold tracking-tight">Client mappings</h1>
         <p className="text-sm opacity-70 mt-1">
-          Link a MyHours client to a Xero contact. Optional per-client hourly rate overrides{" "}
-          <code>DEFAULT_HOURLY_RATE</code>.
+          Link a MyHours client to a Xero contact so it shows up on the Reconcile page.
         </p>
       </header>
 
@@ -88,16 +87,6 @@ export default async function MappingsPage() {
             fallback={!!xeroError}
           />
 
-          <label className="text-sm">
-            <span className="block opacity-70 mb-1">Hourly rate (optional)</span>
-            <input
-              name="hourlyRate"
-              type="number"
-              step="0.01"
-              className="w-full rounded border border-current/20 bg-transparent px-2 py-1.5"
-            />
-          </label>
-
           <div className="sm:col-span-2">
             <button
               type="submit"
@@ -124,7 +113,6 @@ export default async function MappingsPage() {
                 <tr>
                   <th className="px-3 py-2">MyHours client</th>
                   <th className="px-3 py-2">Xero contact</th>
-                  <th className="px-3 py-2 text-right">Rate</th>
                   <th className="px-3 py-2" />
                 </tr>
               </thead>
@@ -135,9 +123,6 @@ export default async function MappingsPage() {
                     <td className="px-3 py-2">
                       <div>{m.xeroContactName || <span className="opacity-50">(no name)</span>}</div>
                       <div className="text-xs opacity-50 font-mono">{m.xeroContactId}</div>
-                    </td>
-                    <td className="px-3 py-2 text-right tabular-nums">
-                      {m.hourlyRate == null ? "—" : m.hourlyRate.toFixed(2)}
                     </td>
                     <td className="px-3 py-2 text-right">
                       <form action={deleteMapping}>

@@ -9,25 +9,23 @@ export interface ReconcileRow {
   xeroContactId: string | null;
   hours: number;
   billableHours: number;
-  hourlyRate: number | null;
-  impliedAmount: number | null; // billableHours * hourlyRate when known
   invoicedAmount: number; // sum of Xero ACCREC invoice subtotals (ex VAT)
   invoiceCount: number;
-  variance: number | null; // invoicedAmount - impliedAmount
+  // Effective £/hr = invoicedAmount / billableHours (null if no billable hours).
+  effectiveRate: number | null;
   status: "matched" | "unmapped" | "no-time" | "no-invoice";
 }
 
 export interface ReconcileResult {
   year: number;
   month: number;
-  defaultRate: number;
   rows: ReconcileRow[];
   totals: {
     hours: number;
     billableHours: number;
-    impliedAmount: number;
     invoicedAmount: number;
-    variance: number;
+    // Weighted effective £/hr across all matched rows.
+    effectiveRate: number | null;
   };
   unmatchedXeroContacts: { contactId: string; name: string; invoicedAmount: number }[];
 }
@@ -35,7 +33,6 @@ export interface ReconcileResult {
 const UNASSIGNED = "(unassigned)";
 
 export async function reconcileMonth(year: number, month: number): Promise<ReconcileResult> {
-  const defaultRate = Number(process.env.DEFAULT_HOURLY_RATE ?? 0);
   const range = mh.monthRange(year, month);
 
   const [logs, invoices, mappings] = await Promise.all([
@@ -90,8 +87,6 @@ export async function reconcileMonth(year: number, month: number): Promise<Recon
     const xeroAgg = xeroContactId ? byContact.get(xeroContactId) : undefined;
     if (xeroContactId) seenXeroContacts.add(xeroContactId);
 
-    const rate = mapping?.hourlyRate ?? (defaultRate > 0 ? defaultRate : null);
-    const impliedAmount = rate != null ? agg.billableHours * rate : null;
     const invoicedAmount = xeroAgg?.invoiced ?? 0;
     const invoiceCount = xeroAgg?.count ?? 0;
 
@@ -106,11 +101,9 @@ export async function reconcileMonth(year: number, month: number): Promise<Recon
       xeroContactId,
       hours: round(agg.hours),
       billableHours: round(agg.billableHours),
-      hourlyRate: rate,
-      impliedAmount: impliedAmount == null ? null : round(impliedAmount),
       invoicedAmount: round(invoicedAmount),
       invoiceCount,
-      variance: impliedAmount == null ? null : round(invoicedAmount - impliedAmount),
+      effectiveRate: agg.billableHours > 0 ? round(invoicedAmount / agg.billableHours) : null,
       status,
     });
   }
@@ -128,11 +121,9 @@ export async function reconcileMonth(year: number, month: number): Promise<Recon
         xeroContactId: contactId,
         hours: 0,
         billableHours: 0,
-        hourlyRate: mapping.hourlyRate ?? (defaultRate > 0 ? defaultRate : null),
-        impliedAmount: 0,
         invoicedAmount: round(agg.invoiced),
         invoiceCount: agg.count,
-        variance: round(agg.invoiced),
+        effectiveRate: null,
         status: "no-time",
       });
     } else {
@@ -150,25 +141,22 @@ export async function reconcileMonth(year: number, month: number): Promise<Recon
     (acc, r) => {
       acc.hours += r.hours;
       acc.billableHours += r.billableHours;
-      acc.impliedAmount += r.impliedAmount ?? 0;
       acc.invoicedAmount += r.invoicedAmount;
-      acc.variance += r.variance ?? 0;
       return acc;
     },
-    { hours: 0, billableHours: 0, impliedAmount: 0, invoicedAmount: 0, variance: 0 },
+    { hours: 0, billableHours: 0, invoicedAmount: 0 },
   );
 
   return {
     year,
     month,
-    defaultRate,
     rows,
     totals: {
       hours: round(totals.hours),
       billableHours: round(totals.billableHours),
-      impliedAmount: round(totals.impliedAmount),
       invoicedAmount: round(totals.invoicedAmount),
-      variance: round(totals.variance),
+      effectiveRate:
+        totals.billableHours > 0 ? round(totals.invoicedAmount / totals.billableHours) : null,
     },
     unmatchedXeroContacts,
   };
