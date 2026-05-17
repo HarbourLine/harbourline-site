@@ -73,10 +73,35 @@ export async function listProjects(): Promise<MyHoursProject[]> {
 
 // Fetch all time logs in the given inclusive date range (YYYY-MM-DD strings).
 // Aggregation is done by the caller (reconcile.ts) so we keep this raw.
+// We probe several known/likely endpoint+param combinations until one returns
+// data — MyHours has changed shape over versions and the public docs are
+// behind auth so we don't know the canonical form. The first non-empty result
+// wins; the rest is logged for diagnostics.
 export async function listLogs(from: string, to: string): Promise<MyHoursLog[]> {
-  // TODO: confirm endpoint + param names. Common shapes are /Logs?from=&to=
-  // or /TimeLogs?dateFrom=&dateTo=. We'll harden this once we have a live key.
-  return get<MyHoursLog[]>("/Logs", { from, to });
+  const candidates: Array<{ path: string; params: Record<string, string> }> = [
+    { path: "/Logs", params: { from, to } },
+    { path: "/Logs", params: { dateFrom: from, dateTo: to } },
+    { path: "/Logs", params: { startDate: from, endDate: to } },
+    { path: "/TimeLogs", params: { from, to } },
+    { path: "/TimeLogs", params: { dateFrom: from, dateTo: to } },
+    { path: "/timeLogs", params: { from, to } },
+    { path: "/Logs", params: {} },
+    { path: "/TimeLogs", params: {} },
+  ];
+  for (const { path, params } of candidates) {
+    try {
+      const result = await get<unknown>(path, params);
+      const count = Array.isArray(result) ? result.length : -1;
+      console.log(
+        `[myhours] probe ${path} params=${JSON.stringify(params)} -> ${count === -1 ? "non-array response" : count + " items"}`,
+      );
+      if (Array.isArray(result) && result.length > 0) return result as MyHoursLog[];
+    } catch (e) {
+      const msg = e instanceof Error ? e.message.slice(0, 200) : String(e);
+      console.log(`[myhours] probe ${path} params=${JSON.stringify(params)} -> ERROR: ${msg}`);
+    }
+  }
+  return [];
 }
 
 // Convenience: month range in UTC.
