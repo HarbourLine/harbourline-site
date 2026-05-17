@@ -22,10 +22,13 @@ async function get<T>(path: string, params?: Record<string, string>): Promise<T>
     },
     cache: "no-store",
   });
+  const bodyText = await res.text();
+  console.log(`[myhours] GET ${url.toString()} -> ${res.status}`);
+  console.log(`[myhours]   body (first 400 chars): ${bodyText.slice(0, 400)}`);
   if (!res.ok) {
-    throw new Error(`MyHours ${path} failed: ${res.status} ${await res.text()}`);
+    throw new Error(`MyHours ${path} failed: ${res.status} ${bodyText}`);
   }
-  return res.json() as Promise<T>;
+  return JSON.parse(bodyText) as T;
 }
 
 export interface MyHoursClient {
