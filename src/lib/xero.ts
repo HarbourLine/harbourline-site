@@ -8,13 +8,17 @@ const TOKEN_URL = "https://identity.xero.com/connect/token";
 const CONNECTIONS_URL = "https://api.xero.com/connections";
 const API_BASE = "https://api.xero.com/api.xro/2.0";
 
+// Xero introduced granular scopes on 2 March 2026. Apps created on/after
+// that date no longer have access to the broad scopes (accounting.transactions,
+// accounting.contacts). We use the new granular .read variants instead.
+// Docs: https://developer.xero.com/documentation/guides/oauth2/scopes/
 export const XERO_SCOPES = [
   "offline_access",
   "openid",
   "profile",
   "email",
-  "accounting.transactions",
-  "accounting.contacts",
+  "accounting.invoices.read",
+  "accounting.contacts.read",
 ].join(" ");
 
 function requireEnv(name: string): string {
