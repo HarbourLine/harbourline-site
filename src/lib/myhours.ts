@@ -78,26 +78,51 @@ export async function listProjects(): Promise<MyHoursProject[]> {
 // behind auth so we don't know the canonical form. The first non-empty result
 // wins; the rest is logged for diagnostics.
 export async function listLogs(from: string, to: string): Promise<MyHoursLog[]> {
+  // MyHours has shown a `/Projects/getAll` style endpoint in third-party
+  // connectors, so the listing endpoints likely use that RPC suffix.
+  // We try several known shapes; first non-empty wins. We also probe
+  // /Clients and /Projects (which should always be non-empty for a working
+  // account) to verify auth is good in isolation.
+  const sanityProbes = [
+    { path: "/Clients/getAll", params: {} },
+    { path: "/Projects/getAll", params: {} },
+    { path: "/Clients", params: {} },
+    { path: "/Projects", params: {} },
+  ];
+  for (const { path, params } of sanityProbes) {
+    try {
+      const result = await get<unknown>(path, params);
+      const count = Array.isArray(result) ? result.length : -1;
+      console.log(
+        `[myhours] sanity ${path} -> ${count === -1 ? "non-array" : count + " items"}`,
+      );
+    } catch (e) {
+      const msg = e instanceof Error ? e.message.slice(0, 160) : String(e);
+      console.log(`[myhours] sanity ${path} -> ERROR: ${msg}`);
+    }
+  }
+
   const candidates: Array<{ path: string; params: Record<string, string> }> = [
-    { path: "/Logs", params: { from, to } },
-    { path: "/Logs", params: { dateFrom: from, dateTo: to } },
-    { path: "/Logs", params: { startDate: from, endDate: to } },
-    { path: "/TimeLogs", params: { from, to } },
-    { path: "/TimeLogs", params: { dateFrom: from, dateTo: to } },
-    { path: "/timeLogs", params: { from, to } },
-    { path: "/Logs", params: {} },
-    { path: "/TimeLogs", params: {} },
+    { path: "/Logs/getAll", params: { from, to } },
+    { path: "/Logs/getAll", params: { dateFrom: from, dateTo: to } },
+    { path: "/Logs/getAll", params: {} },
+    { path: "/TimeLogs/getAll", params: { from, to } },
+    { path: "/TimeLogs/getAll", params: {} },
+    { path: "/Reports/Logs", params: { from, to } },
+    { path: "/Reports/TimeLogs", params: { from, to } },
+    { path: "/Logs/byDateRange", params: { from, to } },
+    { path: "/Logs/getByDateRange", params: { from, to } },
   ];
   for (const { path, params } of candidates) {
     try {
       const result = await get<unknown>(path, params);
       const count = Array.isArray(result) ? result.length : -1;
       console.log(
-        `[myhours] probe ${path} params=${JSON.stringify(params)} -> ${count === -1 ? "non-array response" : count + " items"}`,
+        `[myhours] probe ${path} params=${JSON.stringify(params)} -> ${count === -1 ? "non-array" : count + " items"}`,
       );
       if (Array.isArray(result) && result.length > 0) return result as MyHoursLog[];
     } catch (e) {
-      const msg = e instanceof Error ? e.message.slice(0, 200) : String(e);
+      const msg = e instanceof Error ? e.message.slice(0, 160) : String(e);
       console.log(`[myhours] probe ${path} params=${JSON.stringify(params)} -> ERROR: ${msg}`);
     }
   }
