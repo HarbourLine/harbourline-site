@@ -1,0 +1,22 @@
+node_modules/
+.next/
+out/
+build/
+dist/
+
+# Env — keep committed `.env` (non-secret defaults), ignore local overrides
+.env.local
+.env.*.local
+
+# Prisma local DB
+prisma/dev.db
+prisma/dev.db-journal
+*.db
+*.db-journal
+
+# Misc
+.DS_Store
+*.log
+.vercel
+.turbo
+next-env.d.ts

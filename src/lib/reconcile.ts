@@ -1,0 +1,179 @@
+import { prisma } from "./db";
+import * as mh from "./myhours";
+import * as xero from "./xero";
+
+export interface ReconcileRow {
+  // Display name: prefers the mapped Xero contact name; falls back to MyHours name; "(unassigned)" for null clients.
+  clientName: string;
+  myHoursClientId: string | null;
+  xeroContactId: string | null;
+  hours: number;
+  billableHours: number;
+  hourlyRate: number | null;
+  impliedAmount: number | null; // billableHours * hourlyRate when known
+  invoicedAmount: number; // sum of Xero ACCREC invoice totals (ex tax)
+  invoiceCount: number;
+  variance: number | null; // invoicedAmount - impliedAmount
+  status: "matched" | "unmapped" | "no-time" | "no-invoice";
+}
+
+export interface ReconcileResult {
+  year: number;
+  month: number;
+  defaultRate: number;
+  rows: ReconcileRow[];
+  totals: {
+    hours: number;
+    billableHours: number;
+    impliedAmount: number;
+    invoicedAmount: number;
+    variance: number;
+  };
+  unmatchedXeroContacts: { contactId: string; name: string; invoicedAmount: number }[];
+}
+
+export async function reconcileMonth(year: number, month: number): Promise<ReconcileResult> {
+  const defaultRate = Number(process.env.DEFAULT_HOURLY_RATE ?? 0);
+  const range = mh.monthRange(year, month);
+
+  const [logs, invoices, mappings] = await Promise.all([
+    mh.listLogs(range.from, range.to),
+    xero.fetchInvoicesForMonth(year, month),
+    prisma.clientMapping.findMany(),
+  ]);
+
+  const mappingByMyHours = new Map(mappings.map((m) => [String(m.myHoursClientId), m]));
+  const mappingByXero = new Map(mappings.map((m) => [m.xeroContactId, m]));
+
+  // Aggregate MyHours by client.
+  type Agg = { hours: number; billableHours: number; name: string; id: string | null };
+  const byClient = new Map<string, Agg>();
+  for (const log of logs) {
+    const key = log.clientId == null ? "__unassigned__" : String(log.clientId);
+    const name = log.clientName ?? "(unassigned)";
+    const hours = (log.durationSeconds ?? 0) / 3600;
+    const billable = log.billable !== false ? hours : 0;
+    const existing = byClient.get(key);
+    if (existing) {
+      existing.hours += hours;
+      existing.billableHours += billable;
+    } else {
+      byClient.set(key, {
+        hours,
+        billableHours: billable,
+        name,
+        id: log.clientId == null ? null : String(log.clientId),
+      });
+    }
+  }
+
+  // Aggregate Xero invoices by contact.
+  const byContact = new Map<string, { invoiced: number; count: number; name: string }>();
+  for (const inv of invoices) {
+    const contactId = inv.Contact.ContactID;
+    const existing = byContact.get(contactId);
+    const amount = inv.SubTotal ?? 0; // ex tax
+    if (existing) {
+      existing.invoiced += amount;
+      existing.count += 1;
+    } else {
+      byContact.set(contactId, { invoiced: amount, count: 1, name: inv.Contact.Name });
+    }
+  }
+
+  const rows: ReconcileRow[] = [];
+  const seenXeroContacts = new Set<string>();
+
+  for (const [, agg] of byClient) {
+    const mapping = agg.id ? mappingByMyHours.get(agg.id) : undefined;
+    const xeroContactId = mapping?.xeroContactId ?? null;
+    const xeroAgg = xeroContactId ? byContact.get(xeroContactId) : undefined;
+    if (xeroContactId) seenXeroContacts.add(xeroContactId);
+
+    const rate = mapping?.hourlyRate ?? (defaultRate > 0 ? defaultRate : null);
+    const impliedAmount = rate != null ? agg.billableHours * rate : null;
+    const invoicedAmount = xeroAgg?.invoiced ?? 0;
+    const invoiceCount = xeroAgg?.count ?? 0;
+
+    let status: ReconcileRow["status"];
+    if (!mapping) status = "unmapped";
+    else if (invoiceCount === 0) status = "no-invoice";
+    else status = "matched";
+
+    rows.push({
+      clientName: mapping?.xeroContactName ?? agg.name,
+      myHoursClientId: agg.id,
+      xeroContactId,
+      hours: round(agg.hours),
+      billableHours: round(agg.billableHours),
+      hourlyRate: rate,
+      impliedAmount: impliedAmount == null ? null : round(impliedAmount),
+      invoicedAmount: round(invoicedAmount),
+      invoiceCount,
+      variance: impliedAmount == null ? null : round(invoicedAmount - impliedAmount),
+      status,
+    });
+  }
+
+  // Xero contacts billed this month but with no tracked time (or no mapping pointing to them).
+  const unmatchedXeroContacts: ReconcileResult["unmatchedXeroContacts"] = [];
+  for (const [contactId, agg] of byContact) {
+    if (seenXeroContacts.has(contactId)) continue;
+    const mapping = mappingByXero.get(contactId);
+    if (mapping) {
+      // Mapped, but the MyHours side had no logs this month.
+      rows.push({
+        clientName: mapping.xeroContactName,
+        myHoursClientId: mapping.myHoursClientId,
+        xeroContactId: contactId,
+        hours: 0,
+        billableHours: 0,
+        hourlyRate: mapping.hourlyRate ?? (defaultRate > 0 ? defaultRate : null),
+        impliedAmount: 0,
+        invoicedAmount: round(agg.invoiced),
+        invoiceCount: agg.count,
+        variance: round(agg.invoiced),
+        status: "no-time",
+      });
+    } else {
+      unmatchedXeroContacts.push({
+        contactId,
+        name: agg.name,
+        invoicedAmount: round(agg.invoiced),
+      });
+    }
+  }
+
+  rows.sort((a, b) => b.invoicedAmount + b.billableHours - (a.invoicedAmount + a.billableHours));
+
+  const totals = rows.reduce(
+    (acc, r) => {
+      acc.hours += r.hours;
+      acc.billableHours += r.billableHours;
+      acc.impliedAmount += r.impliedAmount ?? 0;
+      acc.invoicedAmount += r.invoicedAmount;
+      acc.variance += r.variance ?? 0;
+      return acc;
+    },
+    { hours: 0, billableHours: 0, impliedAmount: 0, invoicedAmount: 0, variance: 0 },
+  );
+
+  return {
+    year,
+    month,
+    defaultRate,
+    rows,
+    totals: {
+      hours: round(totals.hours),
+      billableHours: round(totals.billableHours),
+      impliedAmount: round(totals.impliedAmount),
+      invoicedAmount: round(totals.invoicedAmount),
+      variance: round(totals.variance),
+    },
+    unmatchedXeroContacts,
+  };
+}
+
+function round(n: number): number {
+  return Math.round(n * 100) / 100;
+}

@@ -1,0 +1,35 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+// We only ever have one Xero connection per install for now.
+// Token row holds the latest access + refresh tokens and the tenant we're connected to.
+model XeroConnection {
+  id            String   @id @default(cuid())
+  tenantId      String   @unique
+  tenantName    String
+  accessToken   String
+  refreshToken  String
+  expiresAt     DateTime
+  scope         String
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+}
+
+// Map a MyHours client (by id) to a Xero contact (by id). Optional per-mapping
+// hourly rate overrides DEFAULT_HOURLY_RATE for that client.
+model ClientMapping {
+  id              String   @id @default(cuid())
+  myHoursClientId String   @unique
+  myHoursName     String
+  xeroContactId   String
+  xeroContactName String
+  hourlyRate      Float?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+}
