@@ -35,10 +35,11 @@ const UNASSIGNED = "(unassigned)";
 export async function reconcileMonth(year: number, month: number): Promise<ReconcileResult> {
   const range = mh.monthRange(year, month);
 
-  const [logs, invoices, mappings] = await Promise.all([
+  const [logs, invoices, mappings, exclusions] = await Promise.all([
     mh.listLogs(range.from, range.to),
     xero.fetchInvoicesForMonth(year, month),
     prisma.clientMapping.findMany(),
+    prisma.excludedName.findMany(),
   ]);
 
   // Mappings are keyed by MyHours client name (since MyHours' log API
@@ -46,10 +47,16 @@ export async function reconcileMonth(year: number, month: number): Promise<Recon
   const mappingByName = new Map(mappings.map((m) => [m.myHoursClientName, m]));
   const mappingByXero = new Map(mappings.map((m) => [m.xeroContactId, m]));
 
+  // Exclusions match by name on either side (case-insensitive).
+  const excludedLower = new Set(exclusions.map((e) => e.name.trim().toLowerCase()));
+  const isExcluded = (name: string | null | undefined) =>
+    !!name && excludedLower.has(name.trim().toLowerCase());
+
   // Aggregate MyHours logs by client name.
   type Agg = { hours: number; billableHours: number; name: string };
   const byClient = new Map<string, Agg>();
   for (const log of logs) {
+    if (isExcluded(log.clientName)) continue;
     const name = log.clientName ?? UNASSIGNED;
     const hours = (log.duration ?? 0) / 3600;
     const billableHours = log.billable
@@ -67,6 +74,7 @@ export async function reconcileMonth(year: number, month: number): Promise<Recon
   // Aggregate Xero invoices by contact.
   const byContact = new Map<string, { invoiced: number; count: number; name: string }>();
   for (const inv of invoices) {
+    if (isExcluded(inv.Contact.Name)) continue;
     const contactId = inv.Contact.ContactID;
     const existing = byContact.get(contactId);
     const amount = inv.SubTotal ?? 0; // ex VAT

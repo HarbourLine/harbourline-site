@@ -29,6 +29,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
               <Link href="/" className="hover:underline">Dashboard</Link>
               <Link href="/reconcile" className="hover:underline">Reconcile</Link>
               <Link href="/mappings" className="hover:underline">Client mappings</Link>
+              <Link href="/exclusions" className="hover:underline">Exclusions</Link>
             </nav>
           </div>
         </header>
