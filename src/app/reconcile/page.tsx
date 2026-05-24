@@ -113,7 +113,15 @@ function ResultsTable({ result }: { result: ReconcileResult }) {
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
         <Stat label="Hours tracked" value={fmtHrs(result.totals.hours)} />
         <Stat label="Billable hours" value={fmtHrs(result.totals.billableHours)} />
-        <Stat label="Invoiced £ (ex VAT)" value={fmtMoney(result.totals.invoicedAmount)} />
+        <Stat
+          label="Billed £ (ex VAT)"
+          value={fmtMoney(result.totals.totalBilled)}
+          sub={
+            result.totals.recurringAmount > 0
+              ? `${fmtMoney(result.totals.invoicedAmount)} invoiced + ${fmtMoney(result.totals.recurringAmount)} recurring`
+              : undefined
+          }
+        />
         <Stat
           label="Effective £/hr (weighted)"
           value={result.totals.effectiveRate == null ? "—" : fmtMoney(result.totals.effectiveRate)}
@@ -128,7 +136,8 @@ function ResultsTable({ result }: { result: ReconcileResult }) {
               <Th align="right">Hours</Th>
               <Th align="right">Billable</Th>
               <Th align="right">Invoiced £</Th>
-              <Th align="right">Invoices</Th>
+              <Th align="right">Recurring £</Th>
+              <Th align="right">Billed £</Th>
               <Th align="right">Effective £/hr</Th>
               <Th>Status</Th>
             </tr>
@@ -136,7 +145,7 @@ function ResultsTable({ result }: { result: ReconcileResult }) {
           <tbody>
             {result.rows.length === 0 && (
               <tr>
-                <td colSpan={7} className="p-6 text-center opacity-70">
+                <td colSpan={8} className="p-6 text-center opacity-70">
                   No data for this month.
                 </td>
               </tr>
@@ -146,8 +155,14 @@ function ResultsTable({ result }: { result: ReconcileResult }) {
                 <Td>{r.clientName}</Td>
                 <Td align="right">{fmtHrs(r.hours)}</Td>
                 <Td align="right">{fmtHrs(r.billableHours)}</Td>
-                <Td align="right">{fmtMoney(r.invoicedAmount)}</Td>
-                <Td align="right">{r.invoiceCount}</Td>
+                <Td align="right">
+                  {fmtMoney(r.invoicedAmount)}
+                  {r.invoiceCount > 0 && (
+                    <span className="text-xs opacity-50 ml-1">({r.invoiceCount})</span>
+                  )}
+                </Td>
+                <Td align="right">{r.recurringAmount > 0 ? fmtMoney(r.recurringAmount) : "—"}</Td>
+                <Td align="right">{fmtMoney(r.totalBilled)}</Td>
                 <Td align="right">{r.effectiveRate == null ? "—" : fmtMoney(r.effectiveRate)}</Td>
                 <Td>
                   <StatusPill status={r.status} />
@@ -179,11 +194,12 @@ function ResultsTable({ result }: { result: ReconcileResult }) {
   );
 }
 
-function Stat({ label, value }: { label: string; value: string }) {
+function Stat({ label, value, sub }: { label: string; value: string; sub?: string }) {
   return (
     <div className="rounded-lg border border-black/10 dark:border-white/10 p-3">
       <div className="text-xs opacity-60">{label}</div>
       <div className="text-lg font-medium mt-0.5">{value}</div>
+      {sub && <div className="text-xs opacity-50 mt-0.5">{sub}</div>}
     </div>
   );
 }

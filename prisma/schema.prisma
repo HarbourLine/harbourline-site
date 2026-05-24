@@ -46,3 +46,23 @@ model ExcludedName {
   name      String   @unique
   createdAt DateTime @default(now())
 }
+
+// Synthetic monthly billing for clients on retainer / annual invoices.
+// Attached to a MyHours client name and/or a Xero contact: the amount is
+// added to that group's invoicedAmount each month within the effective range.
+// If neither side links to an existing mapping group, the accrual becomes
+// its own row on Reconcile.
+model RecurringBilling {
+  id                String   @id @default(cuid())
+  name              String   // friendly display name
+  amount            Float    // £ per month
+  myHoursClientName String?
+  xeroContactId     String?
+  xeroContactName   String?
+  // Inclusive YYYY-MM bounds. Null = open ended.
+  effectiveFrom     String?
+  effectiveTo       String?
+  notes             String?
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+}
