@@ -23,8 +23,10 @@ export async function upsertMapping(formData: FormData) {
   }
 
   await prisma.clientMapping.upsert({
-    where: { myHoursClientName },
-    update: { xeroContactId, xeroContactName, hourlyRate },
+    where: {
+      myHoursClientName_xeroContactId: { myHoursClientName, xeroContactId },
+    },
+    update: { xeroContactName, hourlyRate },
     create: { myHoursClientName, xeroContactId, xeroContactName, hourlyRate },
   });
   revalidatePath("/mappings");

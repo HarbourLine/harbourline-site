@@ -36,15 +36,23 @@ export default async function MappingsPage() {
       }),
   ]);
 
-  const mappedNames = new Set(mappings.map((m) => m.myHoursClientName));
-  const mappedXeroIds = new Set(mappings.map((m) => m.xeroContactId));
+  const mhMappingCount = new Map<string, number>();
+  const xeroMappingCount = new Map<string, number>();
+  for (const m of mappings) {
+    mhMappingCount.set(m.myHoursClientName, (mhMappingCount.get(m.myHoursClientName) ?? 0) + 1);
+    xeroMappingCount.set(m.xeroContactId, (xeroMappingCount.get(m.xeroContactId) ?? 0) + 1);
+  }
+  const labelWithCount = (name: string, count: number | undefined) =>
+    count && count > 0 ? `${name} (${count} mapped)` : name;
 
   return (
     <div className="space-y-6">
       <header>
         <h1 className="text-2xl font-semibold tracking-tight">Client mappings</h1>
         <p className="text-sm opacity-70 mt-1">
-          Link a MyHours client to a Xero contact so it shows up on the Reconcile page.
+          Link a MyHours client to a Xero contact so it shows up on the Reconcile page. You can
+          link the same MyHours client to multiple Xero contacts (or vice versa) — connected
+          mappings are collapsed into one row on Reconcile, with hours and invoices summed.
         </p>
       </header>
 
@@ -67,7 +75,7 @@ export default async function MappingsPage() {
             placeholder={myHoursError ? "Unavailable" : "— choose —"}
             options={myHoursClients.map((c) => ({
               value: c.name,
-              label: mappedNames.has(c.name) ? `${c.name} (already mapped)` : c.name,
+              label: labelWithCount(c.name, mhMappingCount.get(c.name)),
             }))}
             fallbackInputHint="(API unavailable — paste MyHours client name exactly as it appears in MyHours)"
             fallback={!!myHoursError}
@@ -81,7 +89,7 @@ export default async function MappingsPage() {
             placeholder={xeroError ? "Unavailable" : "— choose —"}
             options={xeroContacts.map((c) => ({
               value: `${c.id}|${c.name}`,
-              label: mappedXeroIds.has(c.id) ? `${c.name} (already mapped)` : c.name,
+              label: labelWithCount(c.name, xeroMappingCount.get(c.id)),
             }))}
             fallbackInputHint="(API unavailable — paste 'contactGUID|Contact Name')"
             fallback={!!xeroError}
@@ -98,7 +106,8 @@ export default async function MappingsPage() {
         </form>
 
         <p className="text-xs opacity-60 mt-3">
-          Choosing an already-mapped client updates the existing mapping.
+          The count next to each name shows how many existing mappings it has. Pick the same
+          MyHours client again with a different Xero contact (or vice versa) to add another link.
         </p>
       </section>
 

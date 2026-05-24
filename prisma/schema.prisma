@@ -21,17 +21,20 @@ model XeroConnection {
   updatedAt     DateTime @updatedAt
 }
 
-// Map a MyHours client (keyed by name, since MyHours' log API does not
-// expose a client ID per entry) to a Xero contact (by GUID id). Optional
-// per-mapping hourly rate overrides DEFAULT_HOURLY_RATE for that client.
+// Pairwise link between a MyHours client (by name) and a Xero contact
+// (by GUID id). Many-to-many: one MyHours name can have multiple Xero
+// contacts and vice versa. Reconcile collapses transitively-connected
+// pairs into one display row to avoid double-counting.
 model ClientMapping {
   id                String   @id @default(cuid())
-  myHoursClientName String   @unique
+  myHoursClientName String
   xeroContactId     String
   xeroContactName   String
   hourlyRate        Float?
   createdAt         DateTime @default(now())
   updatedAt         DateTime @updatedAt
+
+  @@unique([myHoursClientName, xeroContactId])
 }
 
 // Names to hide from the Reconcile page entirely. Applies to both sides:
