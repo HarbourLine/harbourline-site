@@ -39,16 +39,23 @@ export interface ReconcileResult {
 
 const UNASSIGNED = "(unassigned)";
 
-// Clients with less than this many billable hours are excluded from the
-// overall £/hr calculation and shown at the default rate on their row —
-// otherwise a £10k retainer against 0.1h of admin would massively skew the
-// weighted average.
+// Clients with less than this many hours of recorded time are excluded from
+// the overall £/hr calculation and shown at the default rate on their row —
+// otherwise a £10k retainer against 6 minutes of admin would massively skew
+// the weighted average. Threshold is on recorded (tracked) hours, since
+// MyHours may set billableHours higher than duration via minimum-billing
+// increments.
 const RATE_MIN_HOURS = 1;
 const DEFAULT_HOURLY_RATE = Number(process.env.DEFAULT_HOURLY_RATE) || 40;
 
-function computeRate(totalBilled: number, billableHours: number): number | null {
-  if (billableHours >= RATE_MIN_HOURS) return round(totalBilled / billableHours);
-  if (billableHours > 0 || totalBilled > 0) return DEFAULT_HOURLY_RATE;
+function computeRate(
+  totalBilled: number,
+  hours: number,
+  billableHours: number,
+): number | null {
+  if (hours >= RATE_MIN_HOURS && billableHours > 0)
+    return round(totalBilled / billableHours);
+  if (hours > 0 || billableHours > 0 || totalBilled > 0) return DEFAULT_HOURLY_RATE;
   return null;
 }
 
@@ -247,7 +254,7 @@ export async function reconcileMonth(year: number, month: number): Promise<Recon
       invoiceCount,
       recurringAmount: round(recurringAmount),
       totalBilled: round(totalBilled),
-      effectiveRate: computeRate(totalBilled, billableHours),
+      effectiveRate: computeRate(totalBilled, hours, billableHours),
       status,
     });
   }
@@ -273,7 +280,7 @@ export async function reconcileMonth(year: number, month: number): Promise<Recon
       invoiceCount: 0,
       recurringAmount: round(directRecurring),
       totalBilled: round(totalBilled),
-      effectiveRate: computeRate(totalBilled, agg.billableHours),
+      effectiveRate: computeRate(totalBilled, agg.hours, agg.billableHours),
       status: directRecurring > 0 ? "matched" : "unmapped",
     });
     if (directRecurring > 0) seenMhNames.add(name);
@@ -322,9 +329,9 @@ export async function reconcileMonth(year: number, month: number): Promise<Recon
     { hours: 0, billableHours: 0, invoicedAmount: 0, recurringAmount: 0, totalBilled: 0 },
   );
 
-  // Weighted £/hr ignores clients under RATE_MIN_HOURS — their hours and
-  // billed amount are dropped from BOTH sides of the ratio.
-  const rateRows = rows.filter((r) => r.billableHours >= RATE_MIN_HOURS);
+  // Weighted £/hr ignores clients under RATE_MIN_HOURS of recorded time —
+  // their hours and billed amount are dropped from BOTH sides of the ratio.
+  const rateRows = rows.filter((r) => r.hours >= RATE_MIN_HOURS);
   const rateBillableHours = rateRows.reduce((s, r) => s + r.billableHours, 0);
   const rateTotalBilled = rateRows.reduce((s, r) => s + r.totalBilled, 0);
 
