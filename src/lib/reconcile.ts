@@ -116,8 +116,11 @@ export async function reconcileMonth(year: number, month: number): Promise<Recon
   type Agg = { hours: number; billableHours: number };
   const mhByName = new Map<string, Agg>();
   for (const log of logs) {
-    if (isExcluded(log.clientName)) continue;
     const name = log.clientName ?? UNASSIGNED;
+    // Exclude after applying the UNASSIGNED fallback so users can add the
+    // literal "(unassigned)" string to the exclusion list to hide clientless
+    // logs entirely.
+    if (isExcluded(name)) continue;
     const hours = (log.duration ?? 0) / 3600;
     const billableHours = log.billable ? (log.billableHours ?? hours) : 0;
     const existing = mhByName.get(name);
