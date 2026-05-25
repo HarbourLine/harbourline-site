@@ -39,6 +39,19 @@ export interface ReconcileResult {
 
 const UNASSIGNED = "(unassigned)";
 
+// Clients with less than this many billable hours are excluded from the
+// overall £/hr calculation and shown at the default rate on their row —
+// otherwise a £10k retainer against 0.1h of admin would massively skew the
+// weighted average.
+const RATE_MIN_HOURS = 1;
+const DEFAULT_HOURLY_RATE = Number(process.env.DEFAULT_HOURLY_RATE) || 40;
+
+function computeRate(totalBilled: number, billableHours: number): number | null {
+  if (billableHours >= RATE_MIN_HOURS) return round(totalBilled / billableHours);
+  if (billableHours > 0 || totalBilled > 0) return DEFAULT_HOURLY_RATE;
+  return null;
+}
+
 interface RawMapping {
   myHoursClientName: string;
   xeroContactId: string;
@@ -234,7 +247,7 @@ export async function reconcileMonth(year: number, month: number): Promise<Recon
       invoiceCount,
       recurringAmount: round(recurringAmount),
       totalBilled: round(totalBilled),
-      effectiveRate: billableHours > 0 ? round(totalBilled / billableHours) : null,
+      effectiveRate: computeRate(totalBilled, billableHours),
       status,
     });
   }
@@ -260,7 +273,7 @@ export async function reconcileMonth(year: number, month: number): Promise<Recon
       invoiceCount: 0,
       recurringAmount: round(directRecurring),
       totalBilled: round(totalBilled),
-      effectiveRate: agg.billableHours > 0 ? round(totalBilled / agg.billableHours) : null,
+      effectiveRate: computeRate(totalBilled, agg.billableHours),
       status: directRecurring > 0 ? "matched" : "unmapped",
     });
     if (directRecurring > 0) seenMhNames.add(name);
@@ -309,6 +322,12 @@ export async function reconcileMonth(year: number, month: number): Promise<Recon
     { hours: 0, billableHours: 0, invoicedAmount: 0, recurringAmount: 0, totalBilled: 0 },
   );
 
+  // Weighted £/hr ignores clients under RATE_MIN_HOURS — their hours and
+  // billed amount are dropped from BOTH sides of the ratio.
+  const rateRows = rows.filter((r) => r.billableHours >= RATE_MIN_HOURS);
+  const rateBillableHours = rateRows.reduce((s, r) => s + r.billableHours, 0);
+  const rateTotalBilled = rateRows.reduce((s, r) => s + r.totalBilled, 0);
+
   return {
     year,
     month,
@@ -320,7 +339,7 @@ export async function reconcileMonth(year: number, month: number): Promise<Recon
       recurringAmount: round(totals.recurringAmount),
       totalBilled: round(totals.totalBilled),
       effectiveRate:
-        totals.billableHours > 0 ? round(totals.totalBilled / totals.billableHours) : null,
+        rateBillableHours > 0 ? round(rateTotalBilled / rateBillableHours) : null,
     },
     unmatchedXeroContacts,
   };
