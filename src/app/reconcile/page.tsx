@@ -123,7 +123,7 @@ function ResultsTable({ result }: { result: ReconcileResult }) {
           }
         />
         <Stat
-          label="Effective £/hr (weighted)"
+          label="Effective £/hr"
           value={result.totals.effectiveRate == null ? "—" : fmtMoney(result.totals.effectiveRate)}
         />
       </div>
