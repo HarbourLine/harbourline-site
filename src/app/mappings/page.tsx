@@ -21,7 +21,12 @@ export default async function MappingsPage() {
     mh
       .listClients()
       .then((cs) => {
-        myHoursClients = cs.sort((a, b) => a.name.localeCompare(b.name));
+        // Deduplicate by name — MyHours can have multiple client records
+        // sharing a display name; from this app's perspective they're one
+        // bucket (reconcile aggregates by name).
+        const byName = new Map<string, { id: number; name: string }>();
+        for (const c of cs) if (!byName.has(c.name)) byName.set(c.name, c);
+        myHoursClients = [...byName.values()].sort((a, b) => a.name.localeCompare(b.name));
       })
       .catch((e) => {
         myHoursError = e instanceof Error ? e.message : String(e);
