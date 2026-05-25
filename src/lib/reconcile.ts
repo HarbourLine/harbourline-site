@@ -52,11 +52,19 @@ function computeRate(
   totalBilled: number,
   hours: number,
   billableHours: number,
+  debugLabel?: string,
 ): number | null {
+  let result: number | null;
   if (hours >= RATE_MIN_HOURS && billableHours > 0)
-    return round(totalBilled / billableHours);
-  if (hours > 0 || billableHours > 0 || totalBilled > 0) return DEFAULT_HOURLY_RATE;
-  return null;
+    result = round(totalBilled / billableHours);
+  else if (hours > 0 || billableHours > 0 || totalBilled > 0) result = DEFAULT_HOURLY_RATE;
+  else result = null;
+  if (debugLabel && hours < RATE_MIN_HOURS) {
+    console.log(
+      `[reconcile.computeRate] ${debugLabel}: hours=${hours} billable=${billableHours} totalBilled=${totalBilled} -> ${result}`,
+    );
+  }
+  return result;
 }
 
 interface RawMapping {
@@ -254,7 +262,7 @@ export async function reconcileMonth(year: number, month: number): Promise<Recon
       invoiceCount,
       recurringAmount: round(recurringAmount),
       totalBilled: round(totalBilled),
-      effectiveRate: computeRate(totalBilled, hours, billableHours),
+      effectiveRate: computeRate(totalBilled, hours, billableHours, display),
       status,
     });
   }
@@ -280,7 +288,7 @@ export async function reconcileMonth(year: number, month: number): Promise<Recon
       invoiceCount: 0,
       recurringAmount: round(directRecurring),
       totalBilled: round(totalBilled),
-      effectiveRate: computeRate(totalBilled, agg.hours, agg.billableHours),
+      effectiveRate: computeRate(totalBilled, agg.hours, agg.billableHours, name),
       status: directRecurring > 0 ? "matched" : "unmapped",
     });
     if (directRecurring > 0) seenMhNames.add(name);
