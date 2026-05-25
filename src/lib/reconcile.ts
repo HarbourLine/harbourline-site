@@ -315,9 +315,17 @@ export async function reconcileMonth(year: number, month: number): Promise<Recon
     });
   }
 
-  rows.sort((a, b) => b.totalBilled + b.billableHours - (a.totalBilled + a.billableHours));
+  // Drop rows with no activity at all this month — mapped clients that
+  // just weren't worked on or billed are noise on the reconcile view.
+  const activeRows = rows.filter(
+    (r) => r.hours > 0 || r.billableHours > 0 || r.totalBilled > 0,
+  );
 
-  const totals = rows.reduce(
+  activeRows.sort(
+    (a, b) => b.totalBilled + b.billableHours - (a.totalBilled + a.billableHours),
+  );
+
+  const totals = activeRows.reduce(
     (acc, r) => {
       acc.hours += r.hours;
       acc.billableHours += r.billableHours;
@@ -331,14 +339,14 @@ export async function reconcileMonth(year: number, month: number): Promise<Recon
 
   // Weighted £/hr ignores clients under RATE_MIN_HOURS of recorded time —
   // their hours and billed amount are dropped from BOTH sides of the ratio.
-  const rateRows = rows.filter((r) => r.hours >= RATE_MIN_HOURS);
+  const rateRows = activeRows.filter((r) => r.hours >= RATE_MIN_HOURS);
   const rateBillableHours = rateRows.reduce((s, r) => s + r.billableHours, 0);
   const rateTotalBilled = rateRows.reduce((s, r) => s + r.totalBilled, 0);
 
   return {
     year,
     month,
-    rows,
+    rows: activeRows,
     totals: {
       hours: round(totals.hours),
       billableHours: round(totals.billableHours),
