@@ -163,7 +163,7 @@ function ResultsTable({ result }: { result: ReconcileResult }) {
                 </Td>
                 <Td align="right">{r.recurringAmount > 0 ? fmtMoney(r.recurringAmount) : "—"}</Td>
                 <Td align="right">{fmtMoney(r.totalBilled)}</Td>
-                <Td align="right">{r.effectiveRate == null ? "—" : fmtMoney(r.effectiveRate)}</Td>
+                <RateCell rate={r.effectiveRate} />
                 <Td>
                   <StatusPill status={r.status} />
                 </Td>
@@ -212,6 +212,31 @@ function Th({ children, align }: { children: React.ReactNode; align?: "right" })
 
 function Td({ children, align }: { children: React.ReactNode; align?: "right" }) {
   return <td className={`px-3 py-2 ${align === "right" ? "text-right tabular-nums" : ""}`}>{children}</td>;
+}
+
+// Flag clients whose effective £/hr is below our flat-fee target — they
+// cost us more time than we're charging for. £35-£39.99 amber, <£35 red.
+function RateCell({ rate }: { rate: number | null }) {
+  if (rate == null) return <Td align="right">—</Td>;
+  const fmt = rate.toLocaleString("en", {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  });
+  if (rate < 35) {
+    return (
+      <Td align="right">
+        <span className="text-red-700 dark:text-red-300 font-medium">🚨 {fmt}</span>
+      </Td>
+    );
+  }
+  if (rate < 40) {
+    return (
+      <Td align="right">
+        <span className="text-amber-700 dark:text-amber-300 font-medium">💡 {fmt}</span>
+      </Td>
+    );
+  }
+  return <Td align="right">{fmt}</Td>;
 }
 
 function StatusPill({ status }: { status: "matched" | "unmapped" | "no-time" | "no-invoice" }) {
