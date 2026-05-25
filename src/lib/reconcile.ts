@@ -202,8 +202,18 @@ export async function reconcileMonth(year: number, month: number): Promise<Recon
 
     const mhNamesArr = [...group.mhNames].sort();
     const xeroNamesArr = [...group.xeroContacts.values()].sort();
-    const display =
-      mhNamesArr.length > 0 ? mhNamesArr.join(" · ") : xeroNamesArr.join(" · ");
+    // Display name rule:
+    //  - 1 MH name        -> use it (covers 1 MH + N Xero, e.g. Intelligent Core)
+    //  - N>1 MH + 1 Xero  -> use the Xero name (covers e.g. MidTech, where several
+    //                       MH clients are billed through one parent in Xero)
+    //  - 0 MH + N Xero    -> join Xero names
+    //  - otherwise        -> join MH names
+    const display = (() => {
+      if (mhNamesArr.length === 1) return mhNamesArr[0];
+      if (mhNamesArr.length > 1 && xeroNamesArr.length === 1) return xeroNamesArr[0];
+      if (mhNamesArr.length === 0) return xeroNamesArr.join(" · ");
+      return mhNamesArr.join(" · ");
+    })();
 
     let status: ReconcileRow["status"];
     if (hours === 0 && billableHours === 0 && (invoiceCount > 0 || recurringAmount > 0))
