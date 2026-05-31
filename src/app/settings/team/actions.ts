@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/db";
 import { currentStaff, requireRole, type Role } from "@/lib/permissions";
 
-const VALID_ROLES: Role[] = ["OWNER", "MANAGER", "BOOKKEEPER", "JUNIOR"];
+const VALID_ROLES: Role[] = ["OWNER", "MANAGER", "BOOKKEEPER"];
 
 export async function updateRole(formData: FormData) {
   const me = await requireRole("OWNER");
@@ -20,18 +20,18 @@ export async function updateRole(formData: FormData) {
         where: { role: "OWNER", isActive: true },
       });
       if (ownerCount <= 1) {
-        throw new Error("Can't demote the last active Owner — promote someone else first.");
+        throw new Error("Can't demote the last active Founder — promote someone else first.");
       }
     }
   }
 
-  // Allow self-demotion only if there's another owner to take over.
+  // Allow self-demotion only if there's another Founder to take over.
   if (staffId === me.staffId && role !== "OWNER") {
     const ownerCount = await prisma.staff.count({
       where: { role: "OWNER", isActive: true, NOT: { id: me.staffId } },
     });
     if (ownerCount === 0) {
-      throw new Error("Promote another Owner first before demoting yourself.");
+      throw new Error("Promote another Founder first before demoting yourself.");
     }
   }
 
@@ -55,7 +55,7 @@ export async function toggleActive(formData: FormData) {
       where: { role: "OWNER", isActive: true },
     });
     if (ownerCount <= 1) {
-      throw new Error("Can't deactivate the last active Owner.");
+      throw new Error("Can't deactivate the last active Founder.");
     }
   }
 

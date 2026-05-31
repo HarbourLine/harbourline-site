@@ -41,7 +41,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
         if (!staff) {
           const count = await prisma.staff.count();
           staff = await prisma.staff.create({
-            data: { email, name, role: count === 0 ? "OWNER" : "JUNIOR" },
+            data: { email, name, role: count === 0 ? "OWNER" : "BOOKKEEPER" },
           });
         }
         token.staffId = staff.id;

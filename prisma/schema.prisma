@@ -8,14 +8,14 @@ datasource db {
 }
 
 // Role determines what each signed-in user can see and do. Enforced via the
-// hardcoded permission matrix in src/lib/permissions.ts. OWNER is bootstrapped
-// automatically for the very first sign-in (Staff count == 0); every later
-// sign-in lands as JUNIOR until an owner promotes them.
+// hardcoded permission matrix in src/lib/permissions.ts. OWNER (shown as
+// "Founder") is bootstrapped automatically for the very first sign-in
+// (Staff count == 0); every later sign-in lands as BOOKKEEPER (shown as
+// "Team Member") until a Founder promotes them.
 enum Role {
   OWNER
   MANAGER
   BOOKKEEPER
-  JUNIOR
 }
 
 // One row per practice team member. Auto-created on first sign-in (matched
@@ -28,7 +28,7 @@ model Staff {
   name            String
   googleUserId    String?   @unique
   myHoursUserId   Int?      @unique
-  role            Role      @default(JUNIOR)
+  role            Role      @default(BOOKKEEPER)
   isActive        Boolean   @default(true)
   // Profile fields — populated as the relevant UIs come online.
   birthday        DateTime?
