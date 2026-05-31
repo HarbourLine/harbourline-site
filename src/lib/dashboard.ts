@@ -30,10 +30,11 @@ export interface DashboardData {
 export interface WatchlistEntry {
   clientName: string;
   monthsBelow: number;               // count of months in window where rate < THRESHOLD
-  perMonth: { year: number; month: number; rate: number | null; hours: number }[];
-  totalHours: number;
+  perMonth: { year: number; month: number; rate: number | null; hours: number; billableHours: number }[];
+  totalHours: number;                // tracked hours across the window (for context)
+  totalBillableHours: number;        // billable hours across the window — denominator of avgRate
   totalBilled: number;
-  avgRate: number | null;
+  avgRate: number | null;            // = totalBilled / totalBillableHours, matches per-month rate logic
 }
 
 const WATCHLIST_THRESHOLD = 35;
@@ -141,7 +142,10 @@ export async function getDashboardData(forceRefresh = false): Promise<DashboardD
 
 function computeWatchlist(recent: DashboardMonth[]): WatchlistEntry[] {
   // Aggregate every client that appears in any of the recent months. For each,
-  // count how many months their effective rate is below the threshold.
+  // count how many months their effective rate is below the threshold. New
+  // clients with only one month of data still divide by their own billable
+  // hours — never by months-in-window — so the average can't be artificially
+  // dragged toward zero by months they didn't exist yet.
   const byClient = new Map<string, WatchlistEntry>();
 
   for (const month of recent) {
@@ -149,12 +153,21 @@ function computeWatchlist(recent: DashboardMonth[]): WatchlistEntry[] {
       // Skip rows with no billable hours — their rate is either £40 (sub-1hr
       // fallback) or null, neither of which is signal worth flagging.
       if (row.billableHours < 1) continue;
+      // Skip months where the client wasn't actually invoiced. These are
+      // typically onboarding/setup time tracked before the first invoice goes
+      // out; counting them as "rate = £0" would (a) wrongly flag the client
+      // as below threshold for those months and (b) dilute the avg rate by
+      // adding billable hours to the denominator with nothing in the
+      // numerator. The watchlist is about pricing, not about whether we
+      // invoiced — leave that latter concern to the reconcile page.
+      if (row.totalBilled <= 0) continue;
 
       const existing = byClient.get(row.clientName) ?? {
         clientName: row.clientName,
         monthsBelow: 0,
         perMonth: [],
         totalHours: 0,
+        totalBillableHours: 0,
         totalBilled: 0,
         avgRate: null,
       };
@@ -163,8 +176,10 @@ function computeWatchlist(recent: DashboardMonth[]): WatchlistEntry[] {
         month: month.month,
         rate: row.effectiveRate,
         hours: row.hours,
+        billableHours: row.billableHours,
       });
       existing.totalHours += row.hours;
+      existing.totalBillableHours += row.billableHours;
       existing.totalBilled += row.totalBilled;
       if (row.effectiveRate != null && row.effectiveRate < WATCHLIST_THRESHOLD) {
         existing.monthsBelow += 1;
@@ -175,7 +190,9 @@ function computeWatchlist(recent: DashboardMonth[]): WatchlistEntry[] {
 
   const flagged = [...byClient.values()].filter((e) => e.monthsBelow >= WATCHLIST_MIN_OCCURRENCES);
   for (const e of flagged) {
-    e.avgRate = e.totalHours > 0 ? round(e.totalBilled / e.totalHours) : null;
+    // Divide by billable hours, matching the per-month rate calculation —
+    // otherwise non-billable admin time pulls the average artificially low.
+    e.avgRate = e.totalBillableHours > 0 ? round(e.totalBilled / e.totalBillableHours) : null;
     // Sort each row's per-month entries chronologically for display.
     e.perMonth.sort((a, b) => a.year - b.year || a.month - b.month);
   }

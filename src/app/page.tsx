@@ -161,7 +161,7 @@ function DashboardView({
                     </th>
                   ))}
                   <th className="py-2 px-3 font-medium text-right">Avg rate</th>
-                  <th className="py-2 pl-3 font-medium text-right">Total hours</th>
+                  <th className="py-2 pl-3 font-medium text-right">Billable hours</th>
                 </tr>
               </thead>
               <tbody>
@@ -184,7 +184,7 @@ function DashboardView({
                       {fmtRate(w.avgRate)}
                     </td>
                     <td className="py-2 pl-3 text-right tabular-nums opacity-70">
-                      {fmtHrs(w.totalHours)}
+                      {fmtHrs(w.totalBillableHours)}
                     </td>
                   </tr>
                 ))}
