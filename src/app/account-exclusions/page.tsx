@@ -1,31 +1,39 @@
 import { prisma } from "@/lib/db";
 import * as xero from "@/lib/xero";
-import { addExclusion, removeExclusion } from "./actions";
+import {
+  addExclusion,
+  getCachedDiscovery,
+  refreshDiscovery,
+  removeExclusion,
+} from "./actions";
 
 export const dynamic = "force-dynamic";
-// Account-code discovery hits Xero for 6 months of invoices, similar weight
-// to the dashboard cold load.
-export const maxDuration = 60;
 
-const DISCOVERY_MONTHS = 6;
-
-export default async function AccountExclusionsPage() {
+export default async function AccountExclusionsPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ refresh_error?: string; refreshed?: string }>;
+}) {
+  const sp = await searchParams;
   const xeroConn = await prisma.xeroConnection.findFirst();
   const existing = await prisma.excludedAccountCode.findMany({ orderBy: { code: "asc" } });
   const excludedCodes = new Set(existing.map((e) => e.code));
 
-  let usage: xero.AccountCodeUsage[] = [];
-  let discoveryError: string | null = null;
-  if (xeroConn) {
-    try {
-      usage = await xero.fetchAccountCodeUsage(DISCOVERY_MONTHS);
-    } catch (e) {
-      discoveryError = e instanceof Error ? e.message : String(e);
-    }
-  }
+  const cached = await getCachedDiscovery();
+  const usage: xero.AccountCodeUsage[] = cached?.data ?? [];
+  const monthsBack = cached?.monthsBack ?? 6;
+  const fetchedAt = cached?.fetchedAt ?? null;
 
   const fmtMoney = (n: number) =>
     n.toLocaleString("en", { style: "currency", currency: "GBP", maximumFractionDigits: 2 });
+  const fmtAgo = (d: Date) => {
+    const mins = Math.round((Date.now() - d.getTime()) / 60000);
+    if (mins < 1) return "just now";
+    if (mins < 60) return `${mins} min ago`;
+    const hours = Math.round(mins / 60);
+    if (hours < 24) return `${hours} h ago`;
+    return `${Math.round(hours / 24)} days ago`;
+  };
 
   return (
     <div className="space-y-6">
@@ -42,6 +50,17 @@ export default async function AccountExclusionsPage() {
       {!xeroConn && (
         <div className="rounded-md border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-sm">
           Xero not connected — connect on the dashboard before discovering account codes.
+        </div>
+      )}
+
+      {sp.refresh_error && (
+        <div className="rounded-md border border-red-500/40 bg-red-500/10 px-3 py-2 text-sm">
+          {sp.refresh_error}
+        </div>
+      )}
+      {sp.refreshed && (
+        <div className="rounded-md border border-emerald-500/40 bg-emerald-500/10 px-3 py-2 text-sm">
+          Discovery refreshed.
         </div>
       )}
 
@@ -87,19 +106,31 @@ export default async function AccountExclusionsPage() {
 
       <section>
         <div className="flex items-baseline justify-between gap-3 flex-wrap mb-3">
-          <h2 className="font-medium">Account codes on your invoices (last {DISCOVERY_MONTHS} months)</h2>
-          <span className="text-xs opacity-60">{usage.length} distinct codes</span>
+          <div>
+            <h2 className="font-medium">
+              Account codes on your invoices (last {monthsBack} months)
+            </h2>
+            <p className="text-xs opacity-60 mt-0.5">
+              {fetchedAt
+                ? `${usage.length} distinct codes — discovered ${fmtAgo(fetchedAt)}`
+                : "Not discovered yet — click Refresh to scan Xero."}
+            </p>
+          </div>
+          <form action={refreshDiscovery}>
+            <input type="hidden" name="months" value="6" />
+            <button
+              type="submit"
+              className="text-xs rounded-md border border-current/20 px-3 py-1.5 hover:bg-foreground/5"
+              disabled={!xeroConn}
+            >
+              {fetchedAt ? "Refresh from Xero" : "Discover from Xero"}
+            </button>
+          </form>
         </div>
 
-        {discoveryError && (
-          <div className="mb-3 rounded-md border border-red-500/40 bg-red-500/10 px-3 py-2 text-sm">
-            Couldn&apos;t load codes from Xero: {discoveryError}
-          </div>
-        )}
-
-        {usage.length === 0 && !discoveryError && xeroConn && (
+        {usage.length === 0 && fetchedAt && (
           <p className="text-sm opacity-70">
-            No invoices found in the last {DISCOVERY_MONTHS} months.
+            No invoices found in the last {monthsBack} months.
           </p>
         )}
 
@@ -174,9 +205,9 @@ export default async function AccountExclusionsPage() {
         )}
 
         <p className="text-xs opacity-60 mt-3">
-          The label is just for your own reference — pick something memorable like &ldquo;Xero
-          recharge&rdquo;. It has no effect on the calculation. If you don&apos;t see a code you
-          need, post an invoice using it and refresh this page.
+          Cached after the first scan so we don&apos;t hammer Xero&apos;s 60-call-per-minute
+          rate limit. Click Refresh when you&apos;ve added a new line type and want it to show
+          up here. The label is just for your own reference.
         </p>
       </section>
     </div>

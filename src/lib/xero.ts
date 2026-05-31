@@ -291,6 +291,9 @@ export interface AccountCodeUsage {
 }
 
 // Aggregate account codes across the last N months of invoices.
+// Fetches sequentially (one month at a time) to stay well clear of Xero's
+// 60 calls/min rate limit. Discovery is cached upstream, so the latency hit
+// of serialising is paid at most once per refresh.
 export async function fetchAccountCodeUsage(monthsBack: number): Promise<AccountCodeUsage[]> {
   const now = new Date();
   const months: { year: number; month: number }[] = [];
@@ -305,9 +308,11 @@ export async function fetchAccountCodeUsage(monthsBack: number): Promise<Account
     }
   }
 
-  // Fetch invoices for each month in parallel.
-  const batches = await Promise.all(months.map((mo) => fetchInvoicesForMonth(mo.year, mo.month)));
-  const allInvoices = batches.flat();
+  const allInvoices: XeroInvoice[] = [];
+  for (const mo of months) {
+    const batch = await fetchInvoicesForMonth(mo.year, mo.month);
+    allInvoices.push(...batch);
+  }
 
   const byCode = new Map<
     string,

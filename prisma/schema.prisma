@@ -78,6 +78,18 @@ model ExcludedAccountCode {
   createdAt DateTime @default(now())
 }
 
+// Cached output of fetchAccountCodeUsage(). Only ever one row (id="singleton")
+// — we don't want to re-fetch 6 months of invoices from Xero on every visit
+// to /account-exclusions. Refreshed on demand via a button; otherwise served
+// from this row.
+model AccountCodeDiscovery {
+  id         String   @id   // always "singleton"
+  data       Json         // AccountCodeUsage[]
+  monthsBack Int
+  fetchedAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+}
+
 // Cached reconciliation results per (year, month). Computing a month from
 // scratch is slow (Xero pagination + MyHours team-wide fetch); the dashboard
 // needs 6 months at once, so we cache. Re-fetched if older than 24h or via
