@@ -153,6 +153,14 @@ function computeWatchlist(recent: DashboardMonth[]): WatchlistEntry[] {
       // Skip rows with no billable hours — their rate is either £40 (sub-1hr
       // fallback) or null, neither of which is signal worth flagging.
       if (row.billableHours < 1) continue;
+      // Skip months where the client wasn't actually invoiced. These are
+      // typically onboarding/setup time tracked before the first invoice goes
+      // out; counting them as "rate = £0" would (a) wrongly flag the client
+      // as below threshold for those months and (b) dilute the avg rate by
+      // adding billable hours to the denominator with nothing in the
+      // numerator. The watchlist is about pricing, not about whether we
+      // invoiced — leave that latter concern to the reconcile page.
+      if (row.totalBilled <= 0) continue;
 
       const existing = byClient.get(row.clientName) ?? {
         clientName: row.clientName,
