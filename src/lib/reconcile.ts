@@ -22,10 +22,25 @@ export interface ReconcileRow {
   status: "matched" | "unmapped" | "no-time" | "no-invoice";
 }
 
+// One row per staff member who logged time in the month. `earnedAmount` is
+// computed by allocating each client's billed £ across the staff who worked
+// on it that month, in proportion to their billable-hour share — so the
+// firm's total earned £ equals the sum of staff earned £.
+export interface StaffSummary {
+  userId: number;
+  userName: string;
+  hours: number;
+  billableHours: number;
+  earnedAmount: number;
+  effectiveRate: number | null;   // earnedAmount / billableHours
+  billablePercent: number | null; // billableHours / hours
+}
+
 export interface ReconcileResult {
   year: number;
   month: number;
   rows: ReconcileRow[];
+  staff: StaffSummary[];
   totals: {
     hours: number;
     billableHours: number;
@@ -112,7 +127,7 @@ function buildGroups(mappings: RawMapping[]) {
 export async function reconcileMonth(year: number, month: number): Promise<ReconcileResult> {
   const range = mh.monthRange(year, month);
 
-  const [logs, invoices, mappings, exclusions, recurringAll, excludedAccountCodes] =
+  const [logs, invoices, mappings, exclusions, recurringAll, excludedAccountCodes, mhUsers] =
     await Promise.all([
       mh.listLogs(range.from, range.to),
       xero.fetchInvoicesForMonth(year, month),
@@ -120,8 +135,10 @@ export async function reconcileMonth(year: number, month: number): Promise<Recon
       prisma.excludedName.findMany(),
       prisma.recurringBilling.findMany(),
       prisma.excludedAccountCode.findMany(),
+      mh.listUsers().catch(() => [] as { id: number; name: string }[]),
     ]);
   const excludedCodes = new Set(excludedAccountCodes.map((e) => e.code.trim()));
+  const userNameById = new Map(mhUsers.map((u) => [u.id, u.name]));
 
   // Filter recurring billing to those effective in this month.
   const ym = `${year}-${String(month).padStart(2, "0")}`;
@@ -135,9 +152,13 @@ export async function reconcileMonth(year: number, month: number): Promise<Recon
   const isExcluded = (name: string | null | undefined) =>
     !!name && excludedLower.has(name.trim().toLowerCase());
 
-  // Aggregate MyHours logs by client name.
+  // Aggregate MyHours logs by client name. Also track a per-user, per-client
+  // breakdown so we can later allocate each client's billed £ across the
+  // staff who worked on it (proportionally to their billable-hour share).
   type Agg = { hours: number; billableHours: number };
   const mhByName = new Map<string, Agg>();
+  const userTotals = new Map<number, { hours: number; billableHours: number }>();
+  const userByClient = new Map<number, Map<string, Agg>>();
   for (const log of logs) {
     const name = log.clientName ?? UNASSIGNED;
     // Exclude after applying the UNASSIGNED fallback so users can add the
@@ -152,6 +173,23 @@ export async function reconcileMonth(year: number, month: number): Promise<Recon
       existing.billableHours += billableHours;
     } else {
       mhByName.set(name, { hours, billableHours });
+    }
+
+    if (log.userId != null) {
+      const utot = userTotals.get(log.userId) ?? { hours: 0, billableHours: 0 };
+      utot.hours += hours;
+      utot.billableHours += billableHours;
+      userTotals.set(log.userId, utot);
+
+      let byClient = userByClient.get(log.userId);
+      if (!byClient) {
+        byClient = new Map();
+        userByClient.set(log.userId, byClient);
+      }
+      const ucagg = byClient.get(name) ?? { hours: 0, billableHours: 0 };
+      ucagg.hours += hours;
+      ucagg.billableHours += billableHours;
+      byClient.set(name, ucagg);
     }
   }
 
@@ -368,10 +406,54 @@ export async function reconcileMonth(year: number, month: number): Promise<Recon
   const rateBillableHours = rateRows.reduce((s, r) => s + r.billableHours, 0);
   const rateTotalBilled = rateRows.reduce((s, r) => s + r.totalBilled, 0);
 
+  // Allocate each row's totalBilled across the staff who worked on the
+  // underlying clients, proportionally to their billable-hour share. Use only
+  // active rows so we mirror what's actually displayed on the reconcile view.
+  // A user's per-row earnings: (their billable hours on that row's clients)
+  // / (row's total billable hours) * row.totalBilled.
+  const userEarned = new Map<number, number>();
+  for (const row of activeRows) {
+    if (row.billableHours <= 0 || row.totalBilled <= 0) continue;
+    // The row's "clients" are the MH names in its group (mapped) or the single
+    // unmapped MH name. For each user, sum their billable hours across those
+    // names, then award the proportional share.
+    const clientNames = row.myHoursNames;
+    if (clientNames.length === 0) continue;
+    for (const [userId, byClient] of userByClient) {
+      let userBillable = 0;
+      for (const name of clientNames) {
+        const ucagg = byClient.get(name);
+        if (ucagg) userBillable += ucagg.billableHours;
+      }
+      if (userBillable <= 0) continue;
+      const share = userBillable / row.billableHours;
+      const earned = share * row.totalBilled;
+      userEarned.set(userId, (userEarned.get(userId) ?? 0) + earned);
+    }
+  }
+
+  const staff: StaffSummary[] = [];
+  for (const [userId, ut] of userTotals) {
+    if (ut.hours <= 0 && ut.billableHours <= 0) continue;
+    const earnedAmount = userEarned.get(userId) ?? 0;
+    staff.push({
+      userId,
+      userName: userNameById.get(userId) ?? `User ${userId}`,
+      hours: round(ut.hours),
+      billableHours: round(ut.billableHours),
+      earnedAmount: round(earnedAmount),
+      effectiveRate: ut.billableHours > 0 ? round(earnedAmount / ut.billableHours) : null,
+      billablePercent:
+        ut.hours > 0 ? round((ut.billableHours / ut.hours) * 100) / 100 : null,
+    });
+  }
+  staff.sort((a, b) => b.earnedAmount - a.earnedAmount);
+
   return {
     year,
     month,
     rows: activeRows,
+    staff,
     totals: {
       hours: round(totals.hours),
       billableHours: round(totals.billableHours),
