@@ -48,7 +48,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
                     type="submit"
                     className="rounded-md border border-current/20 px-2 py-1 text-xs hover:bg-foreground/5"
                   >
-                    Sign out
+                    Sign Out
                   </button>
                 </form>
               </div>

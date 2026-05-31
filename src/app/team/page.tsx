@@ -110,11 +110,11 @@ function StaffView({
   return (
     <>
       <section className="grid grid-cols-2 md:grid-cols-4 gap-3">
-        <Stat label="Team hours" value={fmtHrs(data.firmTotals.hours)} />
-        <Stat label="Billable hours" value={fmtHrs(data.firmTotals.billableHours)} />
-        <Stat label="Earned (ex VAT)" value={fmtMoney(data.firmTotals.earnedAmount)} />
+        <Stat label="Team Hours" value={fmtHrs(data.firmTotals.hours)} />
+        <Stat label="Billable Hours" value={fmtHrs(data.firmTotals.billableHours)} />
+        <Stat label="Earned (Ex VAT)" value={fmtMoney(data.firmTotals.earnedAmount)} />
         <Stat
-          label="% billable"
+          label="% Billable"
           value={fmtPct(data.firmTotals.billablePercent)}
           sub={`Effective ${fmtRate(data.firmTotals.effectiveRate)}`}
         />
@@ -123,7 +123,7 @@ function StaffView({
       <section className="grid gap-4 lg:grid-cols-2">
         <div className="rounded-lg border border-black/10 dark:border-white/10 p-4">
           <div className="flex items-baseline justify-between gap-3 mb-3 flex-wrap">
-            <h2 className="font-medium">Earned £ per person</h2>
+            <h2 className="font-medium">Earned £ Per Person</h2>
             <span className="text-xs opacity-60">Last 6 months</span>
           </div>
           <StackedBarChart format="money" data={earnedColumns} colourFor={colourFor} legend={legend} />
@@ -131,7 +131,7 @@ function StaffView({
 
         <div className="rounded-lg border border-black/10 dark:border-white/10 p-4">
           <div className="flex items-baseline justify-between gap-3 mb-3 flex-wrap">
-            <h2 className="font-medium">Over-run hours per person</h2>
+            <h2 className="font-medium">Over-Run Hours Per Person</h2>
             <span className="text-xs opacity-60">Time not covered by client invoices</span>
           </div>
           <StackedBarChart format="hours" data={overRunColumns} colourFor={colourFor} legend={legend} />
@@ -140,7 +140,7 @@ function StaffView({
 
       <section className="rounded-lg border border-black/10 dark:border-white/10 p-4">
         <div className="flex items-baseline justify-between gap-3 mb-3 flex-wrap">
-          <h2 className="font-medium">By person — {data.anchor.label}</h2>
+          <h2 className="font-medium">By Person — {data.anchor.label}</h2>
           <span className="text-xs opacity-60">
             Δ shown vs the average of the preceding 3 months
           </span>
@@ -152,8 +152,8 @@ function StaffView({
                 <th className="py-2 pr-3 font-medium">Name</th>
                 <th className="py-2 px-3 font-medium text-right">Hours</th>
                 <th className="py-2 px-3 font-medium text-right">Billable</th>
-                <th className="py-2 px-3 font-medium text-right">Over-run</th>
-                <th className="py-2 px-3 font-medium text-right">% billable</th>
+                <th className="py-2 px-3 font-medium text-right">Over-Run</th>
+                <th className="py-2 px-3 font-medium text-right">% Billable</th>
                 <th className="py-2 px-3 font-medium text-right">Earned £</th>
                 <th className="py-2 px-3 font-medium text-right">£/hr</th>
               </tr>

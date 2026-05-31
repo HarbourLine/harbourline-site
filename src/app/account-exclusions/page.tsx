@@ -41,9 +41,9 @@ export default async function AccountExclusionsPage({
       <header>
         <p className="text-xs opacity-60 mb-1">
           <Link className="hover:underline" href="/settings">Settings</Link> /{" "}
-          <span>Account exclusions</span>
+          <span>Account Exclusions</span>
         </p>
-        <h1 className="text-2xl font-semibold tracking-tight">Account exclusions</h1>
+        <h1 className="text-2xl font-semibold tracking-tight">Account Exclusions</h1>
         <p className="text-sm opacity-70 mt-1">
           Subtract pass-through line items from invoice totals when calculating effective £/hr.
           Use this for software subscriptions (Xero, QuickBooks), expense recharges, or anything
@@ -70,7 +70,7 @@ export default async function AccountExclusionsPage({
       )}
 
       <section>
-        <h2 className="font-medium mb-3">Currently excluded ({existing.length})</h2>
+        <h2 className="font-medium mb-3">Currently Excluded ({existing.length})</h2>
         {existing.length === 0 ? (
           <p className="text-sm opacity-70">
             Nothing excluded. Pick codes from the discovery list below to add some.
@@ -113,7 +113,7 @@ export default async function AccountExclusionsPage({
         <div className="flex items-baseline justify-between gap-3 flex-wrap mb-3">
           <div>
             <h2 className="font-medium">
-              Account codes on your invoices (last {monthsBack} months)
+              Account Codes On Your Invoices (Last {monthsBack} Months)
             </h2>
             <p className="text-xs opacity-60 mt-0.5">
               {fetchedAt
@@ -145,7 +145,7 @@ export default async function AccountExclusionsPage({
               <thead className="bg-foreground/5 text-left">
                 <tr>
                   <th className="px-3 py-2">Code</th>
-                  <th className="px-3 py-2">Sample descriptions</th>
+                  <th className="px-3 py-2">Sample Descriptions</th>
                   <th className="px-3 py-2 text-right">Lines</th>
                   <th className="px-3 py-2 text-right">Invoices</th>
                   <th className="px-3 py-2 text-right">Total £</th>

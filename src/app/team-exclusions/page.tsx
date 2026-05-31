@@ -30,9 +30,9 @@ export default async function TeamExclusionsPage() {
       <header>
         <p className="text-xs opacity-60 mb-1">
           <Link className="hover:underline" href="/settings">Settings</Link> /{" "}
-          <span>Team exclusions</span>
+          <span>Team Exclusions</span>
         </p>
-        <h1 className="text-2xl font-semibold tracking-tight">Team exclusions</h1>
+        <h1 className="text-2xl font-semibold tracking-tight">Team Exclusions</h1>
         <p className="text-sm opacity-70 mt-1">
           Hide specific people from the Team page — useful for the owner, support roles, or
           anyone who&apos;s left. Their hours and earnings still flow through the client-side
@@ -53,7 +53,7 @@ export default async function TeamExclusionsPage() {
       )}
 
       <section>
-        <h2 className="font-medium mb-3">Currently excluded ({existing.length})</h2>
+        <h2 className="font-medium mb-3">Currently Excluded ({existing.length})</h2>
         {existing.length === 0 ? (
           <p className="text-sm opacity-70">
             Nothing excluded. Pick people from the MyHours list below to hide them.
@@ -64,7 +64,7 @@ export default async function TeamExclusionsPage() {
               <thead className="bg-foreground/5 text-left">
                 <tr>
                   <th className="px-3 py-2">Name</th>
-                  <th className="px-3 py-2">MyHours user ID</th>
+                  <th className="px-3 py-2">MyHours User ID</th>
                   <th className="px-3 py-2" />
                 </tr>
               </thead>
@@ -100,7 +100,7 @@ export default async function TeamExclusionsPage() {
       </section>
 
       <section>
-        <h2 className="font-medium mb-3">MyHours team ({users.length})</h2>
+        <h2 className="font-medium mb-3">MyHours Team ({users.length})</h2>
         {users.length === 0 && !usersError && myHoursReady && (
           <p className="text-sm opacity-70">No users found in MyHours.</p>
         )}

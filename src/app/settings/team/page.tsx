@@ -32,18 +32,16 @@ export default async function TeamPermissionsPage() {
       <header>
         <p className="text-xs opacity-60 mb-1">
           <Link className="hover:underline" href="/settings">Settings</Link> /{" "}
-          <span>Team &amp; permissions</span>
+          <span>Team &amp; Permissions</span>
         </p>
-        <h1 className="text-2xl font-semibold tracking-tight">Team &amp; permissions</h1>
+        <h1 className="text-2xl font-semibold tracking-tight">Team &amp; Permissions</h1>
         <p className="text-sm opacity-70 mt-1">
-          People who sign in via @{process.env.ALLOWED_GOOGLE_DOMAIN ?? "the configured domain"} get
-          a Staff record automatically. New sign-ins default to <strong>Team Member</strong>
-          access; a Founder can promote them here.
+          ASBK Account Holders Are Automatically Granted Team Member Access.
         </p>
       </header>
 
       <section className="rounded-lg border border-black/10 dark:border-white/10 p-4">
-        <h2 className="font-medium mb-3">Role reference</h2>
+        <h2 className="font-medium mb-3">Role Reference</h2>
         <ul className="space-y-2 text-sm">
           {ROLES.map((r) => (
             <li key={r}>

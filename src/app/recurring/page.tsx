@@ -40,9 +40,9 @@ export default async function RecurringPage() {
       <header>
         <p className="text-xs opacity-60 mb-1">
           <Link className="hover:underline" href="/settings">Settings</Link> /{" "}
-          <span>Recurring billing</span>
+          <span>Recurring Billing</span>
         </p>
-        <h1 className="text-2xl font-semibold tracking-tight">Recurring monthly billing</h1>
+        <h1 className="text-2xl font-semibold tracking-tight">Recurring Monthly Billing</h1>
         <p className="text-sm opacity-70 mt-1">
           Add a fixed monthly amount that&apos;s treated as invoiced on the Reconcile page —
           useful for retainers, annual invoices spread monthly, or any client billed outside Xero.
@@ -52,7 +52,7 @@ export default async function RecurringPage() {
       </header>
 
       <section className="rounded-lg border border-black/10 dark:border-white/10 p-4">
-        <h2 className="font-medium mb-3">Add new recurring amount</h2>
+        <h2 className="font-medium mb-3">Add New Recurring Amount</h2>
 
         {(myHoursError || xeroError) && (
           <div className="mb-3 rounded-md border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-sm">
@@ -138,7 +138,7 @@ export default async function RecurringPage() {
       </section>
 
       <section>
-        <h2 className="font-medium mb-2">Existing entries ({items.length})</h2>
+        <h2 className="font-medium mb-2">Existing Entries ({items.length})</h2>
         {items.length === 0 ? (
           <p className="text-sm opacity-70">Nothing yet.</p>
         ) : (

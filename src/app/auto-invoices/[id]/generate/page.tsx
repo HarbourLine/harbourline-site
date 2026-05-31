@@ -47,7 +47,7 @@ export default async function GeneratePage({
       <header>
         <p className="text-xs opacity-60 mb-1">
           <Link className="hover:underline" href="/settings">Settings</Link> /{" "}
-          <Link className="hover:underline" href="/auto-invoices">Auto-invoices</Link> /{" "}
+          <Link className="hover:underline" href="/auto-invoices">Auto-Invoices</Link> /{" "}
           <span>{automation.name}</span>
         </p>
         <h1 className="text-2xl font-semibold tracking-tight">{automation.name}</h1>
@@ -139,15 +139,15 @@ function PreviewView({
     <>
       <section className="rounded-lg border border-black/10 dark:border-white/10 p-4 space-y-3">
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-sm">
-          <KV label="Invoice date" value={preview.invoiceDate} />
-          <KV label="Due date" value={preview.dueDate} />
+          <KV label="Invoice Date" value={preview.invoiceDate} />
+          <KV label="Due Date" value={preview.dueDate} />
           <KV label="Reference" value={preview.reference || "—"} />
           <KV label="Lines" value={String(preview.lines.length)} />
         </div>
       </section>
 
       <section>
-        <h2 className="font-medium mb-3">Line items</h2>
+        <h2 className="font-medium mb-3">Line Items</h2>
         {preview.lines.length === 0 ? (
           <p className="text-sm opacity-70">
             No matching time logs for this month. Either nothing was tracked, or the task filter
@@ -161,7 +161,7 @@ function PreviewView({
                   <th className="px-3 py-2">Description</th>
                   <th className="px-3 py-2 text-right">Hours</th>
                   <th className="px-3 py-2 text-right">MyHours £</th>
-                  <th className="px-3 py-2 text-right">+ markup</th>
+                  <th className="px-3 py-2 text-right">+ Markup</th>
                   <th className="px-3 py-2 text-right">Invoice £</th>
                 </tr>
               </thead>
@@ -212,7 +212,7 @@ function PreviewView({
 
       {preview.lines.length > 0 && (
         <section className="rounded-lg border border-black/10 dark:border-white/10 p-4">
-          <h2 className="font-medium mb-2">Create draft in Xero</h2>
+          <h2 className="font-medium mb-2">Create Draft In Xero</h2>
           <p className="text-sm opacity-70 mb-3">
             Creates the invoice as a <strong>Draft</strong>. You can still review, edit, and
             authorise it in Xero before sending — nothing goes to the client from here.

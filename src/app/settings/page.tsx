@@ -36,49 +36,49 @@ export default async function SettingsPage() {
       <section className="grid gap-3 sm:grid-cols-2">
         <Card
           href="/settings/team"
-          title="Team & permissions"
-          description="Manage who can sign in and what they can see. Owners can promote/demote, deactivate departed staff, and review the role reference."
+          title="Team & Permissions"
+          description="Manage who can sign in and what they can see. Founders can promote/demote, deactivate departed staff, and review the role reference."
           count={staffCount}
           countLabel={staffCount === 1 ? "active person" : "active people"}
         />
         <Card
           href="/mappings"
-          title="Client mappings"
+          title="Client Mappings"
           description="Link a MyHours client to a Xero contact. Many-to-many supported — connected mappings collapse into one row on Reconcile."
           count={mappings}
           countLabel={mappings === 1 ? "mapping" : "mappings"}
         />
         <Card
           href="/recurring"
-          title="Recurring billing"
+          title="Recurring Billing"
           description="Fixed monthly amounts for clients on retainers or annual invoices spread over the year. Treated as invoiced on the Reconcile page."
           count={recurring}
           countLabel={recurring === 1 ? "entry" : "entries"}
         />
         <Card
           href="/exclusions"
-          title="Name exclusions"
+          title="Name Exclusions"
           description="Hide specific client names from the Dashboard, Reconcile, and Team — both MyHours logs and Xero invoices for that name are skipped entirely."
           count={exclusions}
           countLabel={exclusions === 1 ? "name" : "names"}
         />
         <Card
           href="/account-exclusions"
-          title="Account exclusions"
+          title="Account Exclusions"
           description="Subtract pass-through invoice lines (software recharges, expense reimbursements) from billed totals when calculating effective £/hr."
           count={accountExclusions}
           countLabel={accountExclusions === 1 ? "code" : "codes"}
         />
         <Card
           href="/team-exclusions"
-          title="Team exclusions"
-          description="Hide specific MyHours users from the Team page — the owner, support staff, departed employees. Doesn't affect client-side numbers."
+          title="Team Exclusions"
+          description="Hide specific MyHours users from the Team page — the founder, support staff, departed employees. Doesn't affect client-side numbers."
           count={teamExclusions}
           countLabel={teamExclusions === 1 ? "person" : "people"}
         />
         <Card
           href="/auto-invoices"
-          title="Auto-invoices"
+          title="Auto-Invoices"
           description="Templates that turn a month of MyHours logs into a draft Xero invoice — sub-client breakdown, fixed markup, rounded to the pound."
           count={autoInvoices}
           countLabel={autoInvoices === 1 ? "template" : "templates"}

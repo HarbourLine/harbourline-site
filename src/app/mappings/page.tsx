@@ -56,9 +56,9 @@ export default async function MappingsPage() {
       <header>
         <p className="text-xs opacity-60 mb-1">
           <Link className="hover:underline" href="/settings">Settings</Link> /{" "}
-          <span>Client mappings</span>
+          <span>Client Mappings</span>
         </p>
-        <h1 className="text-2xl font-semibold tracking-tight">Client mappings</h1>
+        <h1 className="text-2xl font-semibold tracking-tight">Client Mappings</h1>
         <p className="text-sm opacity-70 mt-1">
           Link a MyHours client to a Xero contact so it shows up on the Reconcile page. You can
           link the same MyHours client to multiple Xero contacts (or vice versa) — connected
@@ -67,7 +67,7 @@ export default async function MappingsPage() {
       </header>
 
       <section className="rounded-lg border border-black/10 dark:border-white/10 p-4">
-        <h2 className="font-medium mb-3">Add / update mapping</h2>
+        <h2 className="font-medium mb-3">Add / Update Mapping</h2>
 
         {(myHoursError || xeroError) && (
           <div className="mb-3 rounded-md border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-sm">
@@ -122,7 +122,7 @@ export default async function MappingsPage() {
       </section>
 
       <section>
-        <h2 className="font-medium mb-2">Existing mappings ({mappings.length})</h2>
+        <h2 className="font-medium mb-2">Existing Mappings ({mappings.length})</h2>
         {mappings.length === 0 ? (
           <p className="text-sm opacity-70">No mappings yet.</p>
         ) : (
@@ -130,8 +130,8 @@ export default async function MappingsPage() {
             <table className="w-full text-sm">
               <thead className="bg-foreground/5 text-left">
                 <tr>
-                  <th className="px-3 py-2">MyHours client</th>
-                  <th className="px-3 py-2">Xero contact</th>
+                  <th className="px-3 py-2">MyHours Client</th>
+                  <th className="px-3 py-2">Xero Contact</th>
                   <th className="px-3 py-2" />
                 </tr>
               </thead>

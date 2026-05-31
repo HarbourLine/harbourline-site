@@ -12,9 +12,9 @@ export default async function ExclusionsPage() {
       <header>
         <p className="text-xs opacity-60 mb-1">
           <Link className="hover:underline" href="/settings">Settings</Link> /{" "}
-          <span>Name exclusions</span>
+          <span>Name Exclusions</span>
         </p>
-        <h1 className="text-2xl font-semibold tracking-tight">Name exclusions</h1>
+        <h1 className="text-2xl font-semibold tracking-tight">Name Exclusions</h1>
         <p className="text-sm opacity-70 mt-1">
           Names listed here are skipped on the Reconcile page on both sides — any MyHours client
           whose name matches, and any Xero contact whose name matches, are filtered out. Use for
@@ -24,7 +24,7 @@ export default async function ExclusionsPage() {
       </header>
 
       <section className="rounded-lg border border-black/10 dark:border-white/10 p-4">
-        <h2 className="font-medium mb-3">Add exclusions</h2>
+        <h2 className="font-medium mb-3">Add Exclusions</h2>
         <form action={addExclusions} className="space-y-3">
           <label className="block text-sm">
             <span className="block opacity-70 mb-1">Paste one name per line</span>
@@ -47,7 +47,7 @@ export default async function ExclusionsPage() {
       </section>
 
       <section>
-        <h2 className="font-medium mb-2">Current exclusions ({exclusions.length})</h2>
+        <h2 className="font-medium mb-2">Current Exclusions ({exclusions.length})</h2>
         {exclusions.length === 0 ? (
           <p className="text-sm opacity-70">No exclusions yet.</p>
         ) : (
