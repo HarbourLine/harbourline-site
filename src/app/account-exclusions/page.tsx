@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { prisma } from "@/lib/db";
 import * as xero from "@/lib/xero";
 import {
@@ -38,6 +39,10 @@ export default async function AccountExclusionsPage({
   return (
     <div className="space-y-6">
       <header>
+        <p className="text-xs opacity-60 mb-1">
+          <Link className="hover:underline" href="/settings">Settings</Link> /{" "}
+          <span>Account exclusions</span>
+        </p>
         <h1 className="text-2xl font-semibold tracking-tight">Account exclusions</h1>
         <p className="text-sm opacity-70 mt-1">
           Subtract pass-through line items from invoice totals when calculating effective £/hr.

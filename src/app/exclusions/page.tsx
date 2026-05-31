@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { prisma } from "@/lib/db";
 import { addExclusions, deleteExclusion } from "./actions";
 
@@ -9,7 +10,11 @@ export default async function ExclusionsPage() {
   return (
     <div className="space-y-6">
       <header>
-        <h1 className="text-2xl font-semibold tracking-tight">Exclusions</h1>
+        <p className="text-xs opacity-60 mb-1">
+          <Link className="hover:underline" href="/settings">Settings</Link> /{" "}
+          <span>Name exclusions</span>
+        </p>
+        <h1 className="text-2xl font-semibold tracking-tight">Name exclusions</h1>
         <p className="text-sm opacity-70 mt-1">
           Names listed here are skipped on the Reconcile page on both sides — any MyHours client
           whose name matches, and any Xero contact whose name matches, are filtered out. Use for

@@ -78,6 +78,16 @@ model ExcludedAccountCode {
   createdAt DateTime @default(now())
 }
 
+// MyHours users to hide from the Team page (owner, departed staff, etc.).
+// Hiding only affects the /team view — these people still factor into
+// client-side calculations (dashboard, reconcile, watchlist).
+model ExcludedTeamMember {
+  id        String   @id @default(cuid())
+  userId    Int      @unique
+  name      String   // captured at exclusion time for display
+  createdAt DateTime @default(now())
+}
+
 // Cached output of fetchAccountCodeUsage(). Only ever one row (id="singleton")
 // — we don't want to re-fetch 6 months of invoices from Xero on every visit
 // to /account-exclusions. Refreshed on demand via a button; otherwise served

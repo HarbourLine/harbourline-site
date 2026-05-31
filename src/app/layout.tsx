@@ -34,10 +34,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
                 <Link href="/" className="hover:underline">Dashboard</Link>
                 <Link href="/reconcile" className="hover:underline">Reconcile</Link>
                 <Link href="/team" className="hover:underline">Team</Link>
-                <Link href="/mappings" className="hover:underline">Client mappings</Link>
-                <Link href="/recurring" className="hover:underline">Recurring billing</Link>
-                <Link href="/exclusions" className="hover:underline">Exclusions</Link>
-                <Link href="/account-exclusions" className="hover:underline">Account exclusions</Link>
+                <Link href="/settings" className="hover:underline">Settings</Link>
               </nav>
               <div className="flex items-center gap-3 text-sm">
                 <span className="opacity-70 hidden sm:inline">{user.email}</span>
