@@ -66,3 +66,34 @@ model RecurringBilling {
   createdAt         DateTime @default(now())
   updatedAt         DateTime @updatedAt
 }
+
+// Cached reconciliation results per (year, month). Computing a month from
+// scratch is slow (Xero pagination + MyHours team-wide fetch); the dashboard
+// needs 6 months at once, so we cache. Re-fetched if older than 24h or via
+// explicit refresh.
+model ReconcileSnapshot {
+  id        String   @id @default(cuid())
+  year      Int
+  month     Int
+  data      Json     // serialized ReconcileResult
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([year, month])
+}
+
+// Cached AI commentary for the dashboard's "anchor" month (= the last
+// completed month at generation time). Invalidated when the underlying
+// snapshot data hash changes, so a refreshed reconcile re-generates the
+// summary.
+model AISummary {
+  id        String   @id @default(cuid())
+  year      Int
+  month     Int
+  inputHash String   // sha256 of the data the summary was generated from
+  content   String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([year, month])
+}
