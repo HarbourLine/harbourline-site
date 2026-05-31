@@ -94,9 +94,17 @@ export async function getStaffDashboardData(): Promise<StaffDashboardData> {
   const anchor = getAnchorMonth();
   const window = [...monthsBefore(anchor.year, anchor.month, 5), anchor];
 
+  // Excluded team members are hidden from the page entirely — both as rows
+  // and as contributors to the firm-level totals. Their hours and earnings
+  // still flow through the client-side calculations (dashboard, reconcile,
+  // watchlist), since exclusion here only changes the /team view.
+  const excludedTeamMembers = await prisma.excludedTeamMember.findMany();
+  const excludedUserIds = new Set(excludedTeamMembers.map((e) => e.userId));
+
   const monthData = await Promise.all(
     window.map(async (m): Promise<StaffMonth> => {
-      const staff = await getSnapshotStaff(m.year, m.month);
+      const allStaff = await getSnapshotStaff(m.year, m.month);
+      const staff = allStaff.filter((s) => !excludedUserIds.has(s.userId));
       const { label, short } = monthLabel(m.year, m.month);
       return { year: m.year, month: m.month, staff, label, shortLabel: short };
     }),

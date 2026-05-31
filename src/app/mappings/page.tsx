@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { prisma } from "@/lib/db";
 import * as mh from "@/lib/myhours";
 import * as xero from "@/lib/xero";
@@ -53,6 +54,10 @@ export default async function MappingsPage() {
   return (
     <div className="space-y-6">
       <header>
+        <p className="text-xs opacity-60 mb-1">
+          <Link className="hover:underline" href="/settings">Settings</Link> /{" "}
+          <span>Client mappings</span>
+        </p>
         <h1 className="text-2xl font-semibold tracking-tight">Client mappings</h1>
         <p className="text-sm opacity-70 mt-1">
           Link a MyHours client to a Xero contact so it shows up on the Reconcile page. You can
