@@ -11,7 +11,7 @@ import { toggleActive, updateRole } from "./actions";
 
 export const dynamic = "force-dynamic";
 
-const ROLES: Role[] = ["OWNER", "MANAGER", "BOOKKEEPER", "JUNIOR"];
+const ROLES: Role[] = ["OWNER", "MANAGER", "BOOKKEEPER"];
 
 export default async function TeamPermissionsPage() {
   const me = await currentStaff();
@@ -19,7 +19,7 @@ export default async function TeamPermissionsPage() {
     return <Forbidden message="Sign in required." />;
   }
   if (!hasRole(me.role, "MANAGER")) {
-    return <Forbidden message="Team management is restricted to Managers and Owners." />;
+    return <Forbidden message="Team management is restricted to Practice Managers and Founders." />;
   }
   const isOwner = hasRole(me.role, "OWNER");
 
@@ -37,8 +37,8 @@ export default async function TeamPermissionsPage() {
         <h1 className="text-2xl font-semibold tracking-tight">Team &amp; permissions</h1>
         <p className="text-sm opacity-70 mt-1">
           People who sign in via @{process.env.ALLOWED_GOOGLE_DOMAIN ?? "the configured domain"} get
-          a Staff record automatically. New sign-ins default to <strong>Junior</strong> access; an
-          Owner can promote them here.
+          a Staff record automatically. New sign-ins default to <strong>Team Member</strong>
+          access; a Founder can promote them here.
         </p>
       </header>
 

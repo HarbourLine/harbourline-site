@@ -1,14 +1,13 @@
 import { auth } from "@/auth";
 
-export type Role = "OWNER" | "MANAGER" | "BOOKKEEPER" | "JUNIOR";
+export type Role = "OWNER" | "MANAGER" | "BOOKKEEPER";
 
 // Higher rank = more access. Used by hasRole() / requireRole() so callers can
 // say "minimum MANAGER" and get true for OWNER too.
 const RANK: Record<Role, number> = {
-  OWNER: 4,
-  MANAGER: 3,
-  BOOKKEEPER: 2,
-  JUNIOR: 1,
+  OWNER: 3,
+  MANAGER: 2,
+  BOOKKEEPER: 1,
 };
 
 export interface CurrentStaff {
@@ -53,7 +52,7 @@ export async function requireRole(minRole: Role): Promise<CurrentStaff> {
 
 // Human label for the role enum. Surface in UI.
 export function roleLabel(role: Role): string {
-  return { OWNER: "Owner", MANAGER: "Manager", BOOKKEEPER: "Bookkeeper", JUNIOR: "Junior" }[role];
+  return { OWNER: "Founder", MANAGER: "Practice Manager", BOOKKEEPER: "Team Member" }[role];
 }
 
 export function roleDescription(role: Role): string {
@@ -61,10 +60,8 @@ export function roleDescription(role: Role): string {
     OWNER:
       "Everything: all clients, all time, all financial data, can promote/demote anyone.",
     MANAGER:
-      "All clients/tasks/time, can edit settings and approve absences. Can't see other staff's personal HR data.",
+      "All clients, tasks and time, can edit settings and approve absences. Can't see other people's personal HR data.",
     BOOKKEEPER:
       "Own clients + own time + tasks they're assigned to.",
-    JUNIOR:
-      "Only tasks explicitly assigned to them and their own time entries.",
   }[role];
 }
