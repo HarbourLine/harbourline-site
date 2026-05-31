@@ -6,15 +6,23 @@ export const dynamic = "force-dynamic";
 export default async function SettingsPage() {
   // Lightweight counts so each card hints at what's in it without making
   // the user click through.
-  const [mappings, recurring, exclusions, accountExclusions, teamExclusions, autoInvoices] =
-    await Promise.all([
-      prisma.clientMapping.count(),
-      prisma.recurringBilling.count(),
-      prisma.excludedName.count(),
-      prisma.excludedAccountCode.count(),
-      prisma.excludedTeamMember.count(),
-      prisma.invoiceAutomation.count(),
-    ]);
+  const [
+    mappings,
+    recurring,
+    exclusions,
+    accountExclusions,
+    teamExclusions,
+    autoInvoices,
+    staffCount,
+  ] = await Promise.all([
+    prisma.clientMapping.count(),
+    prisma.recurringBilling.count(),
+    prisma.excludedName.count(),
+    prisma.excludedAccountCode.count(),
+    prisma.excludedTeamMember.count(),
+    prisma.invoiceAutomation.count(),
+    prisma.staff.count({ where: { isActive: true } }),
+  ]);
 
   return (
     <div className="space-y-6">
@@ -26,6 +34,13 @@ export default async function SettingsPage() {
       </header>
 
       <section className="grid gap-3 sm:grid-cols-2">
+        <Card
+          href="/settings/team"
+          title="Team & permissions"
+          description="Manage who can sign in and what they can see. Owners can promote/demote, deactivate departed staff, and review the role reference."
+          count={staffCount}
+          countLabel={staffCount === 1 ? "active person" : "active people"}
+        />
         <Card
           href="/mappings"
           title="Client mappings"

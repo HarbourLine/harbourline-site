@@ -7,6 +7,40 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+// Role determines what each signed-in user can see and do. Enforced via the
+// hardcoded permission matrix in src/lib/permissions.ts. OWNER is bootstrapped
+// automatically for the very first sign-in (Staff count == 0); every later
+// sign-in lands as JUNIOR until an owner promotes them.
+enum Role {
+  OWNER
+  MANAGER
+  BOOKKEEPER
+  JUNIOR
+}
+
+// One row per practice team member. Auto-created on first sign-in (matched
+// to the NextAuth Google identity by email). Stores profile fields that
+// future steps (HR, holidays, AML) will surface in their own UI; for now
+// only the auth-essential fields are populated.
+model Staff {
+  id              String    @id @default(cuid())
+  email           String    @unique
+  name            String
+  googleUserId    String?   @unique
+  myHoursUserId   Int?      @unique
+  role            Role      @default(JUNIOR)
+  isActive        Boolean   @default(true)
+  // Profile fields — populated as the relevant UIs come online.
+  birthday        DateTime?
+  startDate       DateTime?
+  leftDate        DateTime?
+  jobTitle        String?
+  phone           String?
+  avatarUrl       String?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+}
+
 // We only ever have one Xero connection per install for now.
 // Token row holds the latest access + refresh tokens and the tenant we're connected to.
 model XeroConnection {
