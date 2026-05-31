@@ -6,13 +6,15 @@ export const dynamic = "force-dynamic";
 export default async function SettingsPage() {
   // Lightweight counts so each card hints at what's in it without making
   // the user click through.
-  const [mappings, recurring, exclusions, accountExclusions, teamExclusions] = await Promise.all([
-    prisma.clientMapping.count(),
-    prisma.recurringBilling.count(),
-    prisma.excludedName.count(),
-    prisma.excludedAccountCode.count(),
-    prisma.excludedTeamMember.count(),
-  ]);
+  const [mappings, recurring, exclusions, accountExclusions, teamExclusions, autoInvoices] =
+    await Promise.all([
+      prisma.clientMapping.count(),
+      prisma.recurringBilling.count(),
+      prisma.excludedName.count(),
+      prisma.excludedAccountCode.count(),
+      prisma.excludedTeamMember.count(),
+      prisma.invoiceAutomation.count(),
+    ]);
 
   return (
     <div className="space-y-6">
@@ -58,6 +60,13 @@ export default async function SettingsPage() {
           description="Hide specific MyHours users from the Team page — the owner, support staff, departed employees. Doesn't affect client-side numbers."
           count={teamExclusions}
           countLabel={teamExclusions === 1 ? "person" : "people"}
+        />
+        <Card
+          href="/auto-invoices"
+          title="Auto-invoices"
+          description="Templates that turn a month of MyHours logs into a draft Xero invoice — sub-client breakdown, fixed markup, rounded to the pound."
+          count={autoInvoices}
+          countLabel={autoInvoices === 1 ? "template" : "templates"}
         />
       </section>
     </div>

@@ -78,6 +78,29 @@ model ExcludedAccountCode {
   createdAt DateTime @default(now())
 }
 
+// Templates for monthly invoices that get auto-generated from MyHours logs.
+// Use for clients we re-bill the same way every month (sub-client breakdown,
+// fixed markup, etc.) — Urban Ledgers being the canonical example.
+model InvoiceAutomation {
+  id              String   @id @default(cuid())
+  name            String   // friendly name, e.g. "Urban Ledgers monthly"
+  xeroContactId   String   // who to bill — e.g. Urban Ledgers Ltd
+  xeroContactName String
+  myHoursClient   String   // MH client whose projects feed the line items
+  taskFilter      String?  // optional MH task name filter (e.g. "Bookkeeping")
+  projectPrefix   String?  // stripped from each project name in the line description (e.g. "UL - ")
+  lineSuffix      String   @default(" - Bookkeeping Support")
+  markupPercent   Float    @default(4)   // e.g. 4 = +4% over MH billable amount
+  vatRate         Float    @default(20)
+  taxType         String   @default("OUTPUT2") // Xero TaxType for 20% UK output VAT
+  accountCode     String   @default("200")     // Xero sales account
+  referenceTemplate String? // optional invoice reference, supports {month} {year}
+  paymentDueDays  Int      @default(30)
+  isActive        Boolean  @default(true)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+}
+
 // MyHours users to hide from the Team page (owner, departed staff, etc.).
 // Hiding only affects the /team view — these people still factor into
 // client-side calculations (dashboard, reconcile, watchlist).
