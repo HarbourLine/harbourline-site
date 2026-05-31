@@ -112,7 +112,7 @@ async function fetchLogsForUser(
   return get<MyHoursLog[]>("/logs/getallbetweendates", params);
 }
 
-async function listUsers(): Promise<{ id: number; name: string }[]> {
+export async function listUsers(): Promise<{ id: number; name: string }[]> {
   const raw = await get<unknown>("/users/getall");
   const arr = Array.isArray(raw) ? raw : [];
   return arr
