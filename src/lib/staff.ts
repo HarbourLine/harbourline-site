@@ -18,13 +18,19 @@ export interface StaffRow {
   perMonth: Map<string, StaffSummary>;     // key = "YYYY-MM"
   anchor: StaffSummary | null;
   // Aggregated totals across the 3-month comparison window (anchor excluded).
-  comparison: { hours: number; billableHours: number; earnedAmount: number };
+  comparison: {
+    hours: number;
+    billableHours: number;
+    earnedAmount: number;
+    overRunHours: number;
+  };
   deltas: {
     hours: number | null;
     billableHours: number | null;
     earnedAmount: number | null;
     effectiveRate: number | null;
     billablePercent: number | null;
+    overRunHours: number | null;
   };
 }
 
@@ -73,7 +79,14 @@ async function getSnapshotStaff(year: number, month: number): Promise<StaffSumma
   const fresh = existing && Date.now() - existing.updatedAt.getTime() < SNAPSHOT_MAX_AGE_MS;
   if (existing && fresh) {
     const data = existing.data as unknown as { staff?: StaffSummary[] };
-    if (Array.isArray(data.staff)) return data.staff;
+    if (Array.isArray(data.staff)) {
+      // Older snapshots predate the over-run / chargeable-hours fields. If
+      // we hit one, force a recompute so the Team page doesn't show empty
+      // values for those columns.
+      const sample = data.staff[0];
+      const hasNewFields = !sample || "overRunHours" in sample;
+      if (hasNewFields) return data.staff;
+    }
   }
   // Either no snapshot, stale, or pre-staff-feature snapshot — recompute.
   const result = await reconcileMonth(year, month);
@@ -137,6 +150,9 @@ export async function getStaffDashboardData(): Promise<StaffDashboardData> {
       compEntries.reduce((s, e) => s + e.billableHours, 0) / Math.max(compEntries.length, 1);
     const compEarned =
       compEntries.reduce((s, e) => s + e.earnedAmount, 0) / Math.max(compEntries.length, 1);
+    const compOverRun =
+      compEntries.reduce((s, e) => s + (e.overRunHours ?? 0), 0) /
+      Math.max(compEntries.length, 1);
     const compRate =
       compEntries.reduce((s, e) => s + e.billableHours, 0) > 0
         ? compEntries.reduce((s, e) => s + e.earnedAmount, 0) /
@@ -153,7 +169,12 @@ export async function getStaffDashboardData(): Promise<StaffDashboardData> {
       userName: u.userName,
       perMonth,
       anchor: anchorEntry,
-      comparison: { hours: compHours, billableHours: compBillable, earnedAmount: compEarned },
+      comparison: {
+        hours: compHours,
+        billableHours: compBillable,
+        earnedAmount: compEarned,
+        overRunHours: compOverRun,
+      },
       deltas: {
         hours: anchorEntry ? safeDelta(anchorEntry.hours, compHours) : null,
         billableHours: anchorEntry ? safeDelta(anchorEntry.billableHours, compBillable) : null,
@@ -165,6 +186,10 @@ export async function getStaffDashboardData(): Promise<StaffDashboardData> {
         billablePercent:
           anchorEntry?.billablePercent != null && compPercent > 0
             ? safeDelta(anchorEntry.billablePercent, compPercent)
+            : null,
+        overRunHours:
+          anchorEntry?.overRunHours != null && compOverRun > 0
+            ? safeDelta(anchorEntry.overRunHours, compOverRun)
             : null,
       },
     });
