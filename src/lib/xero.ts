@@ -10,14 +10,20 @@ const API_BASE = "https://api.xero.com/api.xro/2.0";
 
 // Xero introduced granular scopes on 2 March 2026. Apps created on/after
 // that date no longer have access to the broad scopes (accounting.transactions,
-// accounting.contacts). We use the new granular .read variants instead.
+// accounting.contacts). We use the granular .read variants where possible,
+// plus a write scope for the auto-invoice feature.
 // Docs: https://developer.xero.com/documentation/guides/oauth2/scopes/
+//
+// accounting.invoices covers read+write on Invoices (supersedes the .read
+// variant we used previously). After updating this list, the user must
+// disconnect + reconnect Xero from the dashboard so the new permissions
+// are granted to the refresh token.
 export const XERO_SCOPES = [
   "offline_access",
   "openid",
   "profile",
   "email",
-  "accounting.invoices.read",
+  "accounting.invoices",
   "accounting.contacts.read",
 ].join(" ");
 
@@ -357,4 +363,99 @@ export async function fetchAccountCodeUsage(monthsBack: number): Promise<Account
   }));
   out.sort((a, b) => b.totalAmount - a.totalAmount);
   return out;
+}
+
+export interface CreateInvoiceLineItem {
+  description: string;
+  quantity: number;
+  unitAmount: number;
+  accountCode: string;
+  taxType: string;
+}
+
+export interface CreateInvoiceParams {
+  contactId: string;
+  date: string;       // YYYY-MM-DD
+  dueDate: string;    // YYYY-MM-DD
+  reference?: string;
+  status?: "DRAFT" | "AUTHORISED" | "SUBMITTED";
+  lineItems: CreateInvoiceLineItem[];
+}
+
+export interface CreatedInvoice {
+  invoiceId: string;
+  invoiceNumber: string;
+  status: string;
+  total: number;
+  subTotal: number;
+  totalTax: number;
+}
+
+// Create a sales invoice (ACCREC) in Xero. Requires the accounting.invoices
+// scope (read+write); a "Forbidden" error here means the refresh token was
+// granted under read-only scopes and the user needs to reconnect.
+export async function createInvoice(params: CreateInvoiceParams): Promise<CreatedInvoice> {
+  const conn = await getActiveConnection();
+  if (!conn) throw new Error("No Xero connection");
+
+  const body = {
+    Invoices: [
+      {
+        Type: "ACCREC",
+        Contact: { ContactID: params.contactId },
+        Date: params.date,
+        DueDate: params.dueDate,
+        Reference: params.reference ?? "",
+        Status: params.status ?? "DRAFT",
+        LineAmountTypes: "Exclusive", // line UnitAmounts are pre-VAT
+        LineItems: params.lineItems.map((li) => ({
+          Description: li.description,
+          Quantity: li.quantity,
+          UnitAmount: li.unitAmount,
+          AccountCode: li.accountCode,
+          TaxType: li.taxType,
+        })),
+      },
+    ],
+  };
+
+  const res = await fetch(`${API_BASE}/Invoices`, {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${conn.accessToken}`,
+      "Xero-Tenant-Id": conn.tenantId,
+      Accept: "application/json",
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(body),
+  });
+  if (!res.ok) {
+    const text = await res.text();
+    if (res.status === 403) {
+      throw new Error(
+        "Xero rejected the request: missing write scope. Reconnect Xero from the dashboard so the new permissions are granted.",
+      );
+    }
+    throw new Error(`Xero create invoice failed: ${res.status} ${text}`);
+  }
+  const data = (await res.json()) as {
+    Invoices: Array<{
+      InvoiceID: string;
+      InvoiceNumber: string;
+      Status: string;
+      Total: number;
+      SubTotal: number;
+      TotalTax: number;
+    }>;
+  };
+  const inv = data.Invoices?.[0];
+  if (!inv) throw new Error("Xero create invoice returned no invoice");
+  return {
+    invoiceId: inv.InvoiceID,
+    invoiceNumber: inv.InvoiceNumber,
+    status: inv.Status,
+    total: inv.Total,
+    subTotal: inv.SubTotal,
+    totalTax: inv.TotalTax,
+  };
 }
