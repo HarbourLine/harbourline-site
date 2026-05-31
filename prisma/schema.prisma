@@ -18,6 +18,73 @@ enum Role {
   BOOKKEEPER
 }
 
+// Where a client sits in the practice lifecycle. Drives filtering in lists
+// and decides which onboarding/offboarding steps apply.
+enum ClientStatus {
+  LEAD
+  ONBOARDING
+  ACTIVE
+  DORMANT
+  OFFBOARDED
+}
+
+// AML compliance state per client. EXPIRED triggers a re-check workflow.
+enum AmlStatus {
+  NOT_REQUIRED
+  PENDING
+  PASSED
+  EXPIRED
+  REJECTED
+}
+
+// The central client record — the practice's view of a real-world client.
+// Subsumes the old ClientMapping concept: one Client can be referenced by
+// many MyHours names and/or Xero contacts via ClientLink.
+model Client {
+  id                String       @id @default(cuid())
+  name              String
+  status            ClientStatus @default(ACTIVE)
+  // Trading details
+  companyNumber     String?
+  vatNumber         String?
+  tradingAddress    String?
+  financialYearEnd  DateTime?    // day of year matters; year ignored at display time
+  // Commercial
+  defaultHourlyRate Float?
+  accountManagerId  String?
+  // AML / compliance
+  amlStatus         AmlStatus    @default(NOT_REQUIRED)
+  amlExpiresAt      DateTime?
+  // Free-form
+  notes             String?
+  // Lifecycle stamps
+  onboardedAt       DateTime?
+  offboardedAt      DateTime?
+  createdAt         DateTime     @default(now())
+  updatedAt         DateTime     @updatedAt
+
+  accountManager    Staff?       @relation("ClientsManaged", fields: [accountManagerId], references: [id])
+  links             ClientLink[]
+}
+
+// Many-to-many bridge: one Client can be known to MyHours by multiple names
+// and to Xero by multiple contact IDs. The unique constraint on (source,
+// externalKey) prevents the same MH name or Xero contact pointing at two
+// different Clients.
+model ClientLink {
+  id           String   @id @default(cuid())
+  clientId     String
+  source       String   // "myhours" | "xero"
+  externalKey  String   // MH client name or Xero ContactID
+  externalName String?  // display label (set for Xero contacts)
+  createdAt    DateTime @default(now())
+
+  client       Client   @relation(fields: [clientId], references: [id], onDelete: Cascade)
+
+  @@unique([source, externalKey])
+  @@index([clientId])
+}
+
 // One row per practice team member. Auto-created on first sign-in (matched
 // to the NextAuth Google identity by email). Stores profile fields that
 // future steps (HR, holidays, AML) will surface in their own UI; for now
@@ -39,6 +106,8 @@ model Staff {
   avatarUrl       String?
   createdAt       DateTime  @default(now())
   updatedAt       DateTime  @updatedAt
+
+  managedClients  Client[]  @relation("ClientsManaged")
 }
 
 // We only ever have one Xero connection per install for now.
