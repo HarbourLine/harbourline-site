@@ -53,7 +53,7 @@ export default async function TeamPermissionsPage() {
       </section>
 
       <section>
-        <h2 className="font-medium mb-3">Staff ({staff.length})</h2>
+        <h2 className="font-medium mb-3">Team Members ({staff.length})</h2>
         <div className="overflow-x-auto rounded-lg border border-black/10 dark:border-white/10">
           <table className="w-full text-sm">
             <thead className="bg-foreground/5 text-left">
