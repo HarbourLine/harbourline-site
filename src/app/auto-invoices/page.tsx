@@ -85,6 +85,12 @@ export default async function AutoInvoicesIndex() {
                         >
                           Generate
                         </Link>
+                        <Link
+                          className="text-xs underline opacity-70 hover:opacity-100"
+                          href={`/auto-invoices/${a.id}/edit`}
+                        >
+                          Edit
+                        </Link>
                         <form action={deleteAutomation}>
                           <input type="hidden" name="id" value={a.id} />
                           <button
@@ -169,6 +175,13 @@ export default async function AutoInvoicesIndex() {
             type="number"
             step="0.1"
             defaultValue="4"
+          />
+          <Field
+            name="minimumLineAmount"
+            label="Minimum per line £ (0 = no minimum)"
+            type="number"
+            step="1"
+            defaultValue="0"
           />
           <Field
             name="vatRate"

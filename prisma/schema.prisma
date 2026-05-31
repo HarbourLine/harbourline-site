@@ -91,6 +91,7 @@ model InvoiceAutomation {
   projectPrefix   String?  // stripped from each project name in the line description (e.g. "UL - ")
   lineSuffix      String   @default(" - Bookkeeping Support")
   markupPercent   Float    @default(4)   // e.g. 4 = +4% over MH billable amount
+  minimumLineAmount Float  @default(0)   // £ floor per line (ex VAT); 0 = no minimum
   vatRate         Float    @default(20)
   taxType         String   @default("OUTPUT2") // Xero TaxType for 20% UK output VAT
   accountCode     String   @default("200")     // Xero sales account
