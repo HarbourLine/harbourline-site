@@ -67,6 +67,17 @@ model RecurringBilling {
   updatedAt         DateTime @updatedAt
 }
 
+// Xero account codes whose line items are subtracted from the invoice
+// total when computing "billed £". Use for pass-through charges like
+// software subscriptions recharged to clients — these distort the
+// effective £/hr because they're not bookkeeping revenue.
+model ExcludedAccountCode {
+  id        String   @id @default(cuid())
+  code      String   @unique
+  name      String?  // optional human label, e.g. "Software Recharges"
+  createdAt DateTime @default(now())
+}
+
 // Cached reconciliation results per (year, month). Computing a month from
 // scratch is slow (Xero pagination + MyHours team-wide fetch); the dashboard
 // needs 6 months at once, so we cache. Re-fetched if older than 24h or via
