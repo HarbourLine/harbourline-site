@@ -95,6 +95,11 @@ model InvoiceAutomation {
   vatRate         Float    @default(20)
   taxType         String   @default("OUTPUT2") // Xero TaxType for 20% UK output VAT
   accountCode     String   @default("200")     // Xero sales account
+  // Optional Xero tracking category to set on every line item. Both must be
+  // populated for tracking to be applied. Stored as names (not IDs) so the
+  // setup is human-friendly — Xero matches by name on submission.
+  trackingCategoryName   String?   // e.g. "Project"
+  trackingCategoryOption String?   // e.g. "ASBK Ltd"
   referenceTemplate String? // optional invoice reference, supports {month} {year}
   paymentDueDays  Int      @default(30)
   isActive        Boolean  @default(true)
