@@ -41,9 +41,9 @@ export default async function AutoInvoicesIndex() {
       <header>
         <p className="text-xs opacity-60 mb-1">
           <Link className="hover:underline" href="/settings">Settings</Link> /{" "}
-          <span>Auto-invoices</span>
+          <span>Auto-Invoices</span>
         </p>
-        <h1 className="text-2xl font-semibold tracking-tight">Auto-invoices</h1>
+        <h1 className="text-2xl font-semibold tracking-tight">Auto-Invoices</h1>
         <p className="text-sm opacity-70 mt-1">
           Monthly invoice templates. Pulls the chosen month&apos;s MyHours logs for a configured
           client, filters by task, applies a markup, rounds to the nearest pound, and creates a
@@ -62,7 +62,7 @@ export default async function AutoInvoicesIndex() {
                 <tr>
                   <th className="px-3 py-2">Name</th>
                   <th className="px-3 py-2">Bills</th>
-                  <th className="px-3 py-2">From MyHours client</th>
+                  <th className="px-3 py-2">From MyHours Client</th>
                   <th className="px-3 py-2">Markup</th>
                   <th className="px-3 py-2" />
                 </tr>
@@ -111,7 +111,7 @@ export default async function AutoInvoicesIndex() {
       </section>
 
       <section className="rounded-lg border border-black/10 dark:border-white/10 p-4">
-        <h2 className="font-medium mb-3">Add a new template</h2>
+        <h2 className="font-medium mb-3">Add a New Template</h2>
 
         {(mhError || xeroError) && (
           <div className="mb-3 rounded-md border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-sm">

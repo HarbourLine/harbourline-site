@@ -95,19 +95,19 @@ function DashboardView({
     <>
       <section className="grid grid-cols-2 md:grid-cols-4 gap-3">
         <StatCard
-          label="Hours tracked"
+          label="Hours Tracked"
           value={fmtHrs(anchor.result.totals.hours)}
           delta={deltas.hours}
           direction="up-is-good"
         />
         <StatCard
-          label="Billable hours"
+          label="Billable Hours"
           value={fmtHrs(anchor.result.totals.billableHours)}
           delta={deltas.billableHours}
           direction="up-is-good"
         />
         <StatCard
-          label="Billed (ex VAT)"
+          label="Billed (Ex VAT)"
           value={fmtMoney(anchor.result.totals.totalBilled)}
           delta={deltas.totalBilled}
           direction="up-is-good"
@@ -122,7 +122,7 @@ function DashboardView({
 
       <section className="rounded-lg border border-black/10 dark:border-white/10 p-4">
         <div className="flex items-baseline justify-between gap-3 mb-3 flex-wrap">
-          <h2 className="font-medium">6-month trend</h2>
+          <h2 className="font-medium">6-Month Trend</h2>
           <span className="text-xs opacity-60">
             Billed £ (top) · effective £/hr (bottom)
           </span>
@@ -143,7 +143,7 @@ function DashboardView({
 
       <section className="rounded-lg border border-black/10 dark:border-white/10 p-4">
         <div className="flex items-baseline justify-between gap-3 mb-3 flex-wrap">
-          <h2 className="font-medium">Watch list</h2>
+          <h2 className="font-medium">Watch List</h2>
           <span className="text-xs opacity-60">
             Clients under £35/hr in 2+ of the last 3 months
           </span>
@@ -163,8 +163,8 @@ function DashboardView({
                       {m.shortLabel}
                     </th>
                   ))}
-                  <th className="py-2 px-3 font-medium text-right">Avg rate</th>
-                  <th className="py-2 pl-3 font-medium text-right">Billable hours</th>
+                  <th className="py-2 px-3 font-medium text-right">Avg Rate</th>
+                  <th className="py-2 pl-3 font-medium text-right">Billable Hours</th>
                 </tr>
               </thead>
               <tbody>
@@ -231,7 +231,7 @@ function TopClientsSection({ trend }: { trend: DashboardData["trend"] }) {
   return (
     <section className="rounded-lg border border-black/10 dark:border-white/10 p-4">
       <div className="flex items-baseline justify-between gap-3 mb-3 flex-wrap">
-        <h2 className="font-medium">Top clients by billed £</h2>
+        <h2 className="font-medium">Top Clients By Billed £</h2>
         <span className="text-xs opacity-60">Last 6 months — top 8 named, rest grouped</span>
       </div>
       <StackedBarChart format="money" data={columns} colourFor={colourFor} legend={legend} />
@@ -372,7 +372,7 @@ function ConnectionStatus({
             )}
           </div>
         </Card>
-        <Card title="Claude (AI analysis)">
+        <Card title="Claude (AI Analysis)">
           <Row
             label="API key"
             value={anthropicConfigured ? "Set" : "Missing"}

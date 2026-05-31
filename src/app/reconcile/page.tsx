@@ -111,10 +111,10 @@ function ResultsTable({ result }: { result: ReconcileResult }) {
   return (
     <div className="space-y-4">
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-        <Stat label="Hours tracked" value={fmtHrs(result.totals.hours)} />
-        <Stat label="Billable hours" value={fmtHrs(result.totals.billableHours)} />
+        <Stat label="Hours Tracked" value={fmtHrs(result.totals.hours)} />
+        <Stat label="Billable Hours" value={fmtHrs(result.totals.billableHours)} />
         <Stat
-          label="Billed £ (ex VAT)"
+          label="Billed £ (Ex VAT)"
           value={fmtMoney(result.totals.totalBilled)}
           sub={
             result.totals.recurringAmount > 0
@@ -175,7 +175,7 @@ function ResultsTable({ result }: { result: ReconcileResult }) {
 
       {result.unmatchedXeroContacts.length > 0 && (
         <div className="rounded-lg border border-black/10 dark:border-white/10 p-4">
-          <h3 className="font-medium">Xero contacts invoiced this month with no MyHours mapping</h3>
+          <h3 className="font-medium">Xero Contacts Invoiced This Month With No MyHours Mapping</h3>
           <ul className="mt-2 text-sm space-y-1">
             {result.unmatchedXeroContacts.map((c) => (
               <li key={c.contactId} className="flex justify-between">
@@ -249,8 +249,8 @@ function StatusPill({ status }: { status: "matched" | "unmapped" | "no-time" | "
   const label = {
     matched: "Matched",
     unmapped: "Unmapped",
-    "no-time": "No time",
-    "no-invoice": "No invoice",
+    "no-time": "No Time",
+    "no-invoice": "No Invoice",
   }[status];
   return <span className={`rounded-full px-2 py-0.5 text-xs ${map[status]}`}>{label}</span>;
 }

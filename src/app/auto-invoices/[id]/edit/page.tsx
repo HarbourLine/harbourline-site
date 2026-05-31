@@ -49,10 +49,10 @@ export default async function EditAutomationPage({
       <header>
         <p className="text-xs opacity-60 mb-1">
           <Link className="hover:underline" href="/settings">Settings</Link> /{" "}
-          <Link className="hover:underline" href="/auto-invoices">Auto-invoices</Link> /{" "}
+          <Link className="hover:underline" href="/auto-invoices">Auto-Invoices</Link> /{" "}
           <span>Edit</span>
         </p>
-        <h1 className="text-2xl font-semibold tracking-tight">Edit template</h1>
+        <h1 className="text-2xl font-semibold tracking-tight">Edit Template</h1>
       </header>
 
       <section className="rounded-lg border border-black/10 dark:border-white/10 p-4">
