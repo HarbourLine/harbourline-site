@@ -371,6 +371,10 @@ export interface CreateInvoiceLineItem {
   unitAmount: number;
   accountCode: string;
   taxType: string;
+  // Optional Xero tracking categories — each entry pairs a category name
+  // ("Project") with one of its option values ("ASBK Ltd"). Xero matches by
+  // name on submission; mismatched names return 400.
+  tracking?: { name: string; option: string }[];
 }
 
 export interface CreateInvoiceParams {
@@ -414,6 +418,14 @@ export async function createInvoice(params: CreateInvoiceParams): Promise<Create
           UnitAmount: li.unitAmount,
           AccountCode: li.accountCode,
           TaxType: li.taxType,
+          ...(li.tracking && li.tracking.length > 0
+            ? {
+                Tracking: li.tracking.map((t) => ({
+                  Name: t.name,
+                  Option: t.option,
+                })),
+              }
+            : {}),
         })),
       },
     ],

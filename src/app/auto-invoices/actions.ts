@@ -28,6 +28,9 @@ export async function saveAutomation(formData: FormData) {
   const vatRate = Number(formData.get("vatRate") ?? 20);
   const taxType = String(formData.get("taxType") ?? "OUTPUT2").trim() || "OUTPUT2";
   const accountCode = String(formData.get("accountCode") ?? "200").trim() || "200";
+  const trackingCategoryName = String(formData.get("trackingCategoryName") ?? "").trim() || null;
+  const trackingCategoryOption =
+    String(formData.get("trackingCategoryOption") ?? "").trim() || null;
   const referenceTemplate = String(formData.get("referenceTemplate") ?? "").trim() || null;
   const paymentDueDays = Math.max(0, Number(formData.get("paymentDueDays") ?? 30));
 
@@ -51,6 +54,8 @@ export async function saveAutomation(formData: FormData) {
         vatRate,
         taxType,
         accountCode,
+        trackingCategoryName,
+        trackingCategoryOption,
         referenceTemplate,
         paymentDueDays,
       },
@@ -70,6 +75,8 @@ export async function saveAutomation(formData: FormData) {
         vatRate,
         taxType,
         accountCode,
+        trackingCategoryName,
+        trackingCategoryOption,
         referenceTemplate,
         paymentDueDays,
       },
@@ -106,6 +113,16 @@ export async function createDraftInvoiceFromForm(formData: FormData) {
 
   let created;
   try {
+    const tracking =
+      automation.trackingCategoryName?.trim() && automation.trackingCategoryOption?.trim()
+        ? [
+            {
+              name: automation.trackingCategoryName.trim(),
+              option: automation.trackingCategoryOption.trim(),
+            },
+          ]
+        : undefined;
+
     created = await xero.createInvoice({
       contactId: automation.xeroContactId,
       date: preview.invoiceDate,
@@ -118,6 +135,7 @@ export async function createDraftInvoiceFromForm(formData: FormData) {
         unitAmount: l.invoiceAmount,
         accountCode: automation.accountCode,
         taxType: automation.taxType,
+        tracking,
       })),
     });
   } catch (e) {

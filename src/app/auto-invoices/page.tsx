@@ -195,6 +195,17 @@ export default async function AutoInvoicesIndex() {
           <Field name="accountCode" label="Xero sales account code" defaultValue="200" />
 
           <Field
+            name="trackingCategoryName"
+            label="Xero tracking category (optional)"
+            placeholder="Project"
+          />
+          <Field
+            name="trackingCategoryOption"
+            label="Tracking option (optional)"
+            placeholder="ASBK Ltd"
+          />
+
+          <Field
             name="referenceTemplate"
             label="Invoice reference (optional)"
             placeholder="{monthLabel}"

@@ -122,6 +122,16 @@ export default async function EditAutomationPage({
           <Field name="vatRate" label="VAT rate %" type="number" step="0.1" defaultValue={String(automation.vatRate)} />
           <Field name="taxType" label="Xero tax type" defaultValue={automation.taxType} />
           <Field name="accountCode" label="Xero sales account code" defaultValue={automation.accountCode} />
+          <Field
+            name="trackingCategoryName"
+            label="Xero tracking category (optional)"
+            defaultValue={automation.trackingCategoryName ?? ""}
+          />
+          <Field
+            name="trackingCategoryOption"
+            label="Tracking option (optional)"
+            defaultValue={automation.trackingCategoryOption ?? ""}
+          />
           <Field name="referenceTemplate" label="Invoice reference (optional)" defaultValue={automation.referenceTemplate ?? ""} />
           <Field name="paymentDueDays" label="Payment terms (days)" type="number" defaultValue={String(automation.paymentDueDays)} />
 
