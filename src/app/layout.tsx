@@ -37,7 +37,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
                 <Link href="/settings" className="hover:underline">Settings</Link>
               </nav>
               <div className="flex items-center gap-3 text-sm">
-                <span className="opacity-70 hidden sm:inline">{user.email}</span>
+                <span className="opacity-70 hidden sm:inline">{user.name ?? user.email}</span>
                 <form
                   action={async () => {
                     "use server";
