@@ -44,6 +44,7 @@ export default async function ClientDetailPage({
     include: {
       accountManager: { select: { id: true, name: true } },
       links: { orderBy: [{ source: "asc" }, { externalKey: "asc" }] },
+      contacts: { orderBy: [{ isPrimary: "desc" }, { lastName: "asc" }, { firstName: "asc" }] },
     },
   });
   if (!client) notFound();
@@ -122,6 +123,54 @@ export default async function ClientDetailPage({
           <p className="text-sm whitespace-pre-wrap opacity-80">{client.notes}</p>
         </section>
       )}
+
+      <section>
+        <h2 className="font-medium mb-3">Contacts ({client.contacts.length})</h2>
+        {client.contacts.length === 0 ? (
+          <p className="text-sm opacity-70">No contacts yet — run a Practice Manager sync to import them.</p>
+        ) : (
+          <div className="overflow-x-auto rounded-lg border border-black/10 dark:border-white/10">
+            <table className="w-full text-sm">
+              <thead className="bg-foreground/5 text-left">
+                <tr>
+                  <th className="px-3 py-2">Name</th>
+                  <th className="px-3 py-2">Role</th>
+                  <th className="px-3 py-2">Email</th>
+                  <th className="px-3 py-2">Phone</th>
+                </tr>
+              </thead>
+              <tbody>
+                {client.contacts.map((c) => {
+                  const fullName = [c.firstName, c.lastName].filter(Boolean).join(" ") || "(unnamed)";
+                  return (
+                    <tr key={c.id} className="border-t border-black/5 dark:border-white/5">
+                      <td className="px-3 py-2">
+                        {fullName}
+                        {c.isPrimary && (
+                          <span className="ml-2 text-xs px-2 py-0.5 rounded-full bg-emerald-500/15 text-emerald-700 dark:text-emerald-300">
+                            Primary
+                          </span>
+                        )}
+                      </td>
+                      <td className="px-3 py-2 opacity-80">{c.jobTitle ?? <span className="opacity-50">—</span>}</td>
+                      <td className="px-3 py-2 opacity-80">
+                        {c.email ? (
+                          <a className="hover:underline" href={`mailto:${c.email}`}>{c.email}</a>
+                        ) : (
+                          <span className="opacity-50">—</span>
+                        )}
+                      </td>
+                      <td className="px-3 py-2 opacity-80">
+                        {c.mobile ?? c.phone ?? <span className="opacity-50">—</span>}
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </section>
 
       <section>
         <h2 className="font-medium mb-3">External Links ({client.links.length})</h2>

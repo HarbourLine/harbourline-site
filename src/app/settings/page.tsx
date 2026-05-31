@@ -14,6 +14,7 @@ export default async function SettingsPage() {
     teamExclusions,
     autoInvoices,
     staffCount,
+    syncedClients,
   ] = await Promise.all([
     prisma.clientMapping.count(),
     prisma.recurringBilling.count(),
@@ -22,6 +23,7 @@ export default async function SettingsPage() {
     prisma.excludedTeamMember.count(),
     prisma.invoiceAutomation.count(),
     prisma.staff.count({ where: { isActive: true } }),
+    prisma.client.count({ where: { xpmClientId: { not: null } } }),
   ]);
 
   return (
@@ -75,6 +77,13 @@ export default async function SettingsPage() {
           description="Hide specific MyHours users from the Team page — the founder, support staff, departed employees. Doesn't affect client-side numbers."
           count={teamExclusions}
           countLabel={teamExclusions === 1 ? "person" : "people"}
+        />
+        <Card
+          href="/settings/xpm-sync"
+          title="Xero Practice Manager Sync"
+          description="Pull every client and contact from XPM into the local database. Matches existing rows by GUID, so re-running just refreshes."
+          count={syncedClients}
+          countLabel={syncedClients === 1 ? "client from XPM" : "clients from XPM"}
         />
         <Card
           href="/auto-invoices"

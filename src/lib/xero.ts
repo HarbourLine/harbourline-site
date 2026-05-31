@@ -15,9 +15,10 @@ const API_BASE = "https://api.xero.com/api.xro/2.0";
 // Docs: https://developer.xero.com/documentation/guides/oauth2/scopes/
 //
 // accounting.invoices covers read+write on Invoices (supersedes the .read
-// variant we used previously). After updating this list, the user must
-// disconnect + reconnect Xero from the dashboard so the new permissions
-// are granted to the refresh token.
+// variant we used previously). practicemanager grants read access to XPM
+// clients/contacts/jobs via the api.xero.com/practicemanager/3.0 endpoint.
+// After updating this list, the user must disconnect + reconnect Xero from
+// the dashboard so the new permissions are granted to the refresh token.
 export const XERO_SCOPES = [
   "offline_access",
   "openid",
@@ -25,6 +26,7 @@ export const XERO_SCOPES = [
   "email",
   "accounting.invoices",
   "accounting.contacts.read",
+  "practicemanager",
 ].join(" ");
 
 function requireEnv(name: string): string {
@@ -124,20 +126,32 @@ export async function listConnections(accessToken: string): Promise<XeroTenantCo
   return res.json();
 }
 
-export async function saveConnection(tokens: TokenResponse, tenant: XeroTenantConnection) {
+export async function saveConnection(
+  tokens: TokenResponse,
+  tenants: XeroTenantConnection[],
+) {
+  // Multiple tenant types come back when the user authorises with mixed
+  // scopes. Pick the ORGANISATION row as the primary (Accounting API uses
+  // its tenant ID) and store any PRACTICEMANAGER tenant alongside it.
+  const org = tenants.find((t) => t.tenantType === "ORGANISATION") ?? tenants[0];
+  const xpm = tenants.find((t) => t.tenantType === "PRACTICEMANAGER");
   const expiresAt = new Date(Date.now() + tokens.expires_in * 1000);
   await prisma.xeroConnection.upsert({
-    where: { tenantId: tenant.tenantId },
+    where: { tenantId: org.tenantId },
     update: {
-      tenantName: tenant.tenantName,
+      tenantName: org.tenantName,
+      xpmTenantId: xpm?.tenantId ?? null,
+      xpmTenantName: xpm?.tenantName ?? null,
       accessToken: tokens.access_token,
       refreshToken: tokens.refresh_token,
       expiresAt,
       scope: tokens.scope,
     },
     create: {
-      tenantId: tenant.tenantId,
-      tenantName: tenant.tenantName,
+      tenantId: org.tenantId,
+      tenantName: org.tenantName,
+      xpmTenantId: xpm?.tenantId ?? null,
+      xpmTenantName: xpm?.tenantName ?? null,
       accessToken: tokens.access_token,
       refreshToken: tokens.refresh_token,
       expiresAt,

@@ -19,13 +19,15 @@ enum Role {
 }
 
 // Where a client sits in the practice lifecycle. Drives filtering in lists
-// and decides which onboarding/offboarding steps apply.
+// and decides which onboarding/offboarding steps apply. ARCHIVED is the
+// catch-all for clients XPM has flagged as no-longer-current.
 enum ClientStatus {
   LEAD
   ONBOARDING
   ACTIVE
   DORMANT
   OFFBOARDED
+  ARCHIVED
 }
 
 // AML compliance state per client. EXPIRED triggers a re-check workflow.
@@ -39,7 +41,9 @@ enum AmlStatus {
 
 // The central client record — the practice's view of a real-world client.
 // Subsumes the old ClientMapping concept: one Client can be referenced by
-// many MyHours names and/or Xero contacts via ClientLink.
+// many MyHours names and/or Xero contacts via ClientLink. Records sourced
+// from Xero Practice Manager carry xpmClientId + xpmStatus so the sync can
+// match them by GUID on subsequent runs.
 model Client {
   id                String       @id @default(cuid())
   name              String
@@ -47,6 +51,8 @@ model Client {
   // Trading details
   companyNumber     String?
   vatNumber         String?
+  utr               String?      // UK Unique Taxpayer Reference
+  payeReference     String?
   tradingAddress    String?
   financialYearEnd  DateTime?    // day of year matters; year ignored at display time
   // Commercial
@@ -55,16 +61,46 @@ model Client {
   // AML / compliance
   amlStatus         AmlStatus    @default(NOT_REQUIRED)
   amlExpiresAt      DateTime?
-  // Free-form
+  // Free-form + XPM custom-field passthrough
   notes             String?
+  customFields      Json?        // arbitrary key/value blob captured from XPM
   // Lifecycle stamps
   onboardedAt       DateTime?
   offboardedAt      DateTime?
   createdAt         DateTime     @default(now())
   updatedAt         DateTime     @updatedAt
+  // XPM sync provenance
+  xpmClientId       String?      @unique
+  xpmStatus         String?      // raw XPM status string, kept for audit
+  xpmLastSyncedAt   DateTime?
 
   accountManager    Staff?       @relation("ClientsManaged", fields: [accountManagerId], references: [id])
   links             ClientLink[]
+  contacts          Contact[]
+}
+
+// People at a client — directors, finance leads, anyone we'd write or speak
+// to. Sourced from XPM during sync; can also be added by hand later.
+model Contact {
+  id              String   @id @default(cuid())
+  clientId        String
+  firstName       String?
+  lastName        String?
+  email           String?
+  phone           String?
+  mobile          String?
+  jobTitle        String?
+  isPrimary       Boolean  @default(false)
+  notes           String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  // XPM sync provenance
+  xpmContactId    String?  @unique
+  xpmLastSyncedAt DateTime?
+
+  client          Client   @relation(fields: [clientId], references: [id], onDelete: Cascade)
+
+  @@index([clientId])
 }
 
 // Many-to-many bridge: one Client can be known to MyHours by multiple names
@@ -114,8 +150,10 @@ model Staff {
 // Token row holds the latest access + refresh tokens and the tenant we're connected to.
 model XeroConnection {
   id            String   @id @default(cuid())
-  tenantId      String   @unique
+  tenantId      String   @unique        // Accounting org tenant ID
   tenantName    String
+  xpmTenantId   String?                 // Practice Manager tenant ID, if granted
+  xpmTenantName String?
   accessToken   String
   refreshToken  String
   expiresAt     DateTime
