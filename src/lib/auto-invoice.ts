@@ -51,26 +51,34 @@ export async function buildInvoicePreview(
     byProject.set(project, entry);
   }
 
-  const prefix = automation.projectPrefix?.trim() ?? "";
   const suffix = automation.lineSuffix ?? "";
   const markupFactor = 1 + (automation.markupPercent ?? 0) / 100;
+  const minimumLine = Math.max(0, automation.minimumLineAmount ?? 0);
 
-  // Strip the configured prefix from a project name (case-insensitive). Trim
-  // any whitespace or separator characters left at the front afterwards.
+  // Strip the configured prefix from a project name. Tolerates minor input
+  // variations: "UL", "UL-", "UL - " all match a project that starts with
+  // any of "UL " / "UL- " / "UL - ", then any remaining separators / spaces
+  // at the front are removed too.
+  const rawPrefix = automation.projectPrefix ?? "";
+  const corePrefix = rawPrefix.replace(/[\s\-–—:]+$/, "").trim();
   const stripPrefix = (name: string) => {
-    if (!prefix) return name;
-    const lower = name.toLowerCase();
-    if (lower.startsWith(prefix.toLowerCase())) {
-      return name.slice(prefix.length).replace(/^[\s\-–—:]+/, "").trim();
+    if (!corePrefix) return name.trim();
+    const trimmed = name.trimStart();
+    if (trimmed.toLowerCase().startsWith(corePrefix.toLowerCase())) {
+      return trimmed.slice(corePrefix.length).replace(/^[\s\-–—:]+/, "").trim();
     }
-    return name;
+    return name.trim();
   };
 
   const lines: PreviewLine[] = [];
   for (const [project, agg] of byProject) {
     if (agg.rawAmount <= 0) continue;
     const markedUp = agg.rawAmount * markupFactor;
-    const invoiceAmount = Math.round(markedUp);
+    // Round to the nearest pound first, then enforce the per-line minimum.
+    // Order matters: a £15 marked-up amount rounds to £15, then gets floored
+    // up to the £30 minimum rather than rounding £30 down to £15.
+    const rounded = Math.round(markedUp);
+    const invoiceAmount = Math.max(minimumLine, rounded);
     const subClient = stripPrefix(project);
     lines.push({
       projectName: project,

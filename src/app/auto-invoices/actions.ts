@@ -24,6 +24,7 @@ export async function saveAutomation(formData: FormData) {
   const projectPrefix = String(formData.get("projectPrefix") ?? "").trim() || null;
   const lineSuffix = String(formData.get("lineSuffix") ?? "").trim() || " - Bookkeeping Support";
   const markupPercent = Number(formData.get("markupPercent") ?? 0);
+  const minimumLineAmount = Math.max(0, Number(formData.get("minimumLineAmount") ?? 0));
   const vatRate = Number(formData.get("vatRate") ?? 20);
   const taxType = String(formData.get("taxType") ?? "OUTPUT2").trim() || "OUTPUT2";
   const accountCode = String(formData.get("accountCode") ?? "200").trim() || "200";
@@ -46,6 +47,7 @@ export async function saveAutomation(formData: FormData) {
         projectPrefix,
         lineSuffix,
         markupPercent,
+        minimumLineAmount,
         vatRate,
         taxType,
         accountCode,
@@ -64,6 +66,7 @@ export async function saveAutomation(formData: FormData) {
         projectPrefix,
         lineSuffix,
         markupPercent,
+        minimumLineAmount,
         vatRate,
         taxType,
         accountCode,
