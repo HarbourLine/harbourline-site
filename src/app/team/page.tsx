@@ -25,17 +25,17 @@ export default async function StaffPage() {
   return (
     <div className="space-y-6">
       <header>
-        <h1 className="text-2xl font-semibold tracking-tight">Staff</h1>
+        <h1 className="text-2xl font-semibold tracking-tight">Team</h1>
         <p className="text-sm opacity-70 mt-1">
           {data
-            ? `Per-person hours and earned £ for ${data.anchor.label}, with deltas vs the prior 3-month average. Earned £ allocates each client's billed total across the staff who worked on it that month, in proportion to billable-hour share.`
+            ? `Per-person hours and earned £ for ${data.anchor.label}, with deltas vs the prior 3-month average. Earned £ allocates each client's billed total across the team members who worked on it that month, in proportion to billable-hour share.`
             : "Per-person hours, earned £, and utilisation."}
         </p>
       </header>
 
       {!ready && (
         <div className="rounded-md border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-sm">
-          MyHours + Xero need to be connected before staff data is available.
+          MyHours + Xero need to be connected before team data is available.
         </div>
       )}
 
@@ -101,7 +101,7 @@ function StaffView({ data }: { data: StaffDashboardData }) {
           <table className="w-full text-sm">
             <thead className="text-left">
               <tr className="border-b border-black/10 dark:border-white/10">
-                <th className="py-2 pr-3 font-medium">Staff</th>
+                <th className="py-2 pr-3 font-medium">Name</th>
                 <th className="py-2 px-3 font-medium text-right">Hours</th>
                 <th className="py-2 px-3 font-medium text-right">Billable</th>
                 <th className="py-2 px-3 font-medium text-right">% billable</th>

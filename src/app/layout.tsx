@@ -33,7 +33,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
               <nav className="flex gap-5 text-sm">
                 <Link href="/" className="hover:underline">Dashboard</Link>
                 <Link href="/reconcile" className="hover:underline">Reconcile</Link>
-                <Link href="/staff" className="hover:underline">Staff</Link>
+                <Link href="/team" className="hover:underline">Team</Link>
                 <Link href="/mappings" className="hover:underline">Client mappings</Link>
                 <Link href="/recurring" className="hover:underline">Recurring billing</Link>
                 <Link href="/exclusions" className="hover:underline">Exclusions</Link>
