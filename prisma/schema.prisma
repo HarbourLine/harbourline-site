@@ -115,12 +115,13 @@ model ReconcileSnapshot {
   @@unique([year, month])
 }
 
-// Cached AI commentary for the dashboard's "anchor" month (= the last
-// completed month at generation time). Invalidated when the underlying
-// snapshot data hash changes, so a refreshed reconcile re-generates the
-// summary.
+// Cached AI commentary keyed by (type, year, month). "type" discriminates
+// between the dashboard's firm-level summary and the team page's per-person
+// summary. Invalidated when the underlying snapshot data hash changes, so a
+// refreshed reconcile re-generates the relevant summaries.
 model AISummary {
   id        String   @id @default(cuid())
+  type      String   @default("dashboard") // "dashboard" | "team"
   year      Int
   month     Int
   inputHash String   // sha256 of the data the summary was generated from
@@ -128,5 +129,5 @@ model AISummary {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  @@unique([year, month])
+  @@unique([type, year, month])
 }

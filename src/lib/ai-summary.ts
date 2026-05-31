@@ -20,7 +20,9 @@ export async function getOrCreateAISummary(data: DashboardData): Promise<AISumma
 
   const hash = hashInput(data);
   const existing = await prisma.aISummary.findUnique({
-    where: { year_month: { year: data.anchor.year, month: data.anchor.month } },
+    where: {
+      type_year_month: { type: "dashboard", year: data.anchor.year, month: data.anchor.month },
+    },
   });
   if (existing && existing.inputHash === hash) {
     return { content: existing.content, cached: true };
@@ -28,8 +30,16 @@ export async function getOrCreateAISummary(data: DashboardData): Promise<AISumma
 
   const content = await generateSummary(data);
   await prisma.aISummary.upsert({
-    where: { year_month: { year: data.anchor.year, month: data.anchor.month } },
-    create: { year: data.anchor.year, month: data.anchor.month, inputHash: hash, content },
+    where: {
+      type_year_month: { type: "dashboard", year: data.anchor.year, month: data.anchor.month },
+    },
+    create: {
+      type: "dashboard",
+      year: data.anchor.year,
+      month: data.anchor.month,
+      inputHash: hash,
+      content,
+    },
     update: { inputHash: hash, content },
   });
   return { content, cached: false };

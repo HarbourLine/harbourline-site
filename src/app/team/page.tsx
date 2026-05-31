@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/db";
 import { getStaffDashboardData, type StaffDashboardData, type StaffRow } from "@/lib/staff";
-import { TrendChart } from "@/components/TrendChart";
+import { getOrCreateTeamSummary } from "@/lib/team-ai-summary";
+import { StackedBarChart, buildColourFor, type BarColumn } from "@/components/StackedBarChart";
 
 export const dynamic = "force-dynamic";
 // Same shape as the dashboard: cold first load (~30s for 6 months), then
@@ -10,13 +11,19 @@ export const maxDuration = 60;
 export default async function StaffPage() {
   const xeroConn = await prisma.xeroConnection.findFirst();
   const myHoursReady = Boolean(process.env.MYHOURS_API_KEY);
+  const anthropicConfigured = Boolean(process.env.ANTHROPIC_API_KEY);
   const ready = xeroConn && myHoursReady;
 
   let data: StaffDashboardData | null = null;
   let runError: string | null = null;
+  let aiSummary: string | null = null;
   if (ready) {
     try {
       data = await getStaffDashboardData();
+      if (anthropicConfigured) {
+        const result = await getOrCreateTeamSummary(data);
+        aiSummary = result?.content ?? null;
+      }
     } catch (e) {
       runError = e instanceof Error ? e.message : String(e);
     }
@@ -45,12 +52,22 @@ export default async function StaffPage() {
         </div>
       )}
 
-      {data && <StaffView data={data} />}
+      {data && (
+        <StaffView data={data} aiSummary={aiSummary} anthropicConfigured={anthropicConfigured} />
+      )}
     </div>
   );
 }
 
-function StaffView({ data }: { data: StaffDashboardData }) {
+function StaffView({
+  data,
+  aiSummary,
+  anthropicConfigured,
+}: {
+  data: StaffDashboardData;
+  aiSummary: string | null;
+  anthropicConfigured: boolean;
+}) {
   const fmtMoney = (n: number | null) =>
     n == null
       ? "—"
@@ -62,6 +79,33 @@ function StaffView({ data }: { data: StaffDashboardData }) {
         "/hr";
   const fmtHrs = (n: number) => n.toLocaleString("en", { maximumFractionDigits: 1 });
   const fmtPct = (n: number | null) => (n == null ? "—" : `${(n * 100).toFixed(0)}%`);
+
+  // Assign colours by anchor-month sort order so the biggest earners get the
+  // most distinct primary colours; reused across both charts so each person
+  // is the same colour everywhere.
+  const orderedUserIds = data.rows.map((r) => String(r.userId));
+  const colourFor = buildColourFor(orderedUserIds);
+  const legend = data.rows
+    .filter((r) => r.anchor && r.anchor.earnedAmount > 0)
+    .map((r) => ({ key: String(r.userId), label: r.userName, value: r.anchor?.earnedAmount ?? 0 }));
+
+  const earnedColumns: BarColumn[] = data.trend.map((m) => ({
+    label: m.shortLabel,
+    segments: m.staff.map((s) => ({
+      key: String(s.userId),
+      label: s.userName,
+      value: s.earnedAmount,
+    })),
+  }));
+
+  const overRunColumns: BarColumn[] = data.trend.map((m) => ({
+    label: m.shortLabel,
+    segments: m.staff.map((s) => ({
+      key: String(s.userId),
+      label: s.userName,
+      value: s.overRunHours ?? 0,
+    })),
+  }));
 
   return (
     <>
@@ -76,18 +120,22 @@ function StaffView({ data }: { data: StaffDashboardData }) {
         />
       </section>
 
-      <section className="rounded-lg border border-black/10 dark:border-white/10 p-4">
-        <div className="flex items-baseline justify-between gap-3 mb-3 flex-wrap">
-          <h2 className="font-medium">6-month trend — earned £ per person</h2>
-          <span className="text-xs opacity-60">Stacked total across the team</span>
+      <section className="grid gap-4 lg:grid-cols-2">
+        <div className="rounded-lg border border-black/10 dark:border-white/10 p-4">
+          <div className="flex items-baseline justify-between gap-3 mb-3 flex-wrap">
+            <h2 className="font-medium">Earned £ per person</h2>
+            <span className="text-xs opacity-60">Last 6 months</span>
+          </div>
+          <StackedBarChart format="money" data={earnedColumns} colourFor={colourFor} legend={legend} />
         </div>
-        <TrendChart
-          format="money"
-          data={data.trend.map((m) => ({
-            label: m.shortLabel,
-            value: m.staff.reduce((s, e) => s + e.earnedAmount, 0),
-          }))}
-        />
+
+        <div className="rounded-lg border border-black/10 dark:border-white/10 p-4">
+          <div className="flex items-baseline justify-between gap-3 mb-3 flex-wrap">
+            <h2 className="font-medium">Over-run hours per person</h2>
+            <span className="text-xs opacity-60">Time not covered by client invoices</span>
+          </div>
+          <StackedBarChart format="hours" data={overRunColumns} colourFor={colourFor} legend={legend} />
+        </div>
       </section>
 
       <section className="rounded-lg border border-black/10 dark:border-white/10 p-4">
@@ -124,6 +172,25 @@ function StaffView({ data }: { data: StaffDashboardData }) {
             </tbody>
           </table>
         </div>
+      </section>
+
+      <section className="rounded-lg border border-black/10 dark:border-white/10 p-4">
+        <h2 className="font-medium mb-3">Analysis</h2>
+        {anthropicConfigured ? (
+          aiSummary ? (
+            <div className="space-y-3">
+              {aiSummary.split(/\n\n+/).map((para, i) => (
+                <p key={i} className="text-sm leading-relaxed">{para}</p>
+              ))}
+            </div>
+          ) : (
+            <p className="text-sm opacity-70">Generating analysis…</p>
+          )
+        ) : (
+          <p className="text-sm opacity-70">
+            Add <code className="font-mono">ANTHROPIC_API_KEY</code> to enable the AI commentary.
+          </p>
+        )}
       </section>
     </>
   );
