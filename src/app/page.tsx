@@ -1,8 +1,9 @@
 import Link from "next/link";
 import { prisma } from "@/lib/db";
-import { getDashboardData, type DashboardData } from "@/lib/dashboard";
+import { buildTopClientColumns, getDashboardData, type DashboardData } from "@/lib/dashboard";
 import { getOrCreateAISummary } from "@/lib/ai-summary";
 import { TrendChart } from "@/components/TrendChart";
+import { StackedBarChart, buildColourFor } from "@/components/StackedBarChart";
 
 export const dynamic = "force-dynamic";
 // Dashboard runs reconcile for 6 months on first cold load (Xero pagination
@@ -138,6 +139,8 @@ function DashboardView({
         </div>
       </section>
 
+      <TopClientsSection trend={trend} />
+
       <section className="rounded-lg border border-black/10 dark:border-white/10 p-4">
         <div className="flex items-baseline justify-between gap-3 mb-3 flex-wrap">
           <h2 className="font-medium">Watch list</h2>
@@ -213,6 +216,26 @@ function DashboardView({
         )}
       </section>
     </>
+  );
+}
+
+function TopClientsSection({ trend }: { trend: DashboardData["trend"] }) {
+  const { columns, legend } = buildTopClientColumns(trend);
+  if (columns.length === 0) return null;
+  // Top clients get the palette in anchor-month order; "Others" is a fixed
+  // neutral grey so it never competes for attention with a real client.
+  const orderedKeys = legend.map((l) => l.key);
+  const baseColourFor = buildColourFor(orderedKeys);
+  const colourFor = (key: string) => (key === "__others__" ? "#6b7280" : baseColourFor(key));
+
+  return (
+    <section className="rounded-lg border border-black/10 dark:border-white/10 p-4">
+      <div className="flex items-baseline justify-between gap-3 mb-3 flex-wrap">
+        <h2 className="font-medium">Top clients by billed £</h2>
+        <span className="text-xs opacity-60">Last 6 months — top 8 named, rest grouped</span>
+      </div>
+      <StackedBarChart format="money" data={columns} colourFor={colourFor} legend={legend} />
+    </section>
   );
 }
 

@@ -204,3 +204,47 @@ function computeWatchlist(recent: DashboardMonth[]): WatchlistEntry[] {
 function round(n: number): number {
   return Math.round(n * 100) / 100;
 }
+
+// Pick the top N clients by billed £ in the anchor month and produce one
+// stacked column per month with those clients (in fixed order) plus an
+// "Others" segment for the long tail. Anchor-month ordering keeps the colours
+// stable across the chart even when a smaller client briefly outranks a
+// regular one in a historical month.
+export const TOP_CLIENTS_N = 8;
+
+export function buildTopClientColumns(trend: DashboardMonth[]): {
+  columns: { label: string; segments: { key: string; label: string; value: number }[] }[];
+  legend: { key: string; label: string; value: number }[];
+} {
+  if (trend.length === 0) return { columns: [], legend: [] };
+  const anchor = trend[trend.length - 1];
+  const sortedAnchor = [...anchor.result.rows]
+    .filter((r) => r.totalBilled > 0)
+    .sort((a, b) => b.totalBilled - a.totalBilled);
+  const topRows = sortedAnchor.slice(0, TOP_CLIENTS_N);
+  const topKeys = new Set(topRows.map((r) => r.clientName));
+
+  const columns = trend.map((m) => {
+    let othersTotal = 0;
+    const segments: { key: string; label: string; value: number }[] = [];
+    for (const row of m.result.rows) {
+      if (row.totalBilled <= 0) continue;
+      if (topKeys.has(row.clientName)) {
+        segments.push({ key: row.clientName, label: row.clientName, value: row.totalBilled });
+      } else {
+        othersTotal += row.totalBilled;
+      }
+    }
+    if (othersTotal > 0) {
+      segments.push({ key: "__others__", label: "Others", value: othersTotal });
+    }
+    return { label: m.shortLabel, segments };
+  });
+
+  const legend = [
+    ...topRows.map((r) => ({ key: r.clientName, label: r.clientName, value: r.totalBilled })),
+    { key: "__others__", label: "Others", value: 0 },
+  ];
+
+  return { columns, legend };
+}
