@@ -50,7 +50,7 @@ function hashInput(data: DashboardData): string {
       clientName: w.clientName,
       monthsBelow: w.monthsBelow,
       avgRate: w.avgRate,
-      totalHours: w.totalHours,
+      totalBillableHours: w.totalBillableHours,
     })),
   };
   return createHash("sha256").update(JSON.stringify(payload)).digest("hex");
@@ -102,7 +102,7 @@ function buildPrompt(data: DashboardData): string {
           .slice(0, 8) // keep the prompt concise
           .map(
             (w) =>
-              `  ${w.clientName}: avg ${fmtRate(w.avgRate)} across ${w.totalHours.toFixed(1)}h, ` +
+              `  ${w.clientName}: avg ${fmtRate(w.avgRate)} across ${w.totalBillableHours.toFixed(1)}h billable, ` +
               `under £35 in ${w.monthsBelow} of last 3 months`,
           )
           .join("\n");
