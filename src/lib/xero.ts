@@ -202,7 +202,20 @@ export async function fetchActiveContacts(): Promise<{ id: string; name: string 
   return all.map((c) => ({ id: c.ContactID, name: c.Name }));
 }
 
-interface XeroInvoice {
+export interface XeroLineItem {
+  LineItemID?: string;
+  Description?: string;
+  Quantity?: number;
+  UnitAmount?: number;
+  AccountCode?: string;
+  ItemCode?: string;
+  LineAmount?: number; // ex-VAT, = Quantity * UnitAmount minus any line discount
+  DiscountRate?: number;
+  TaxType?: string;
+  TaxAmount?: number;
+}
+
+export interface XeroInvoice {
   InvoiceID: string;
   InvoiceNumber?: string;
   Type: "ACCREC" | "ACCPAY";
@@ -216,6 +229,7 @@ interface XeroInvoice {
   AmountDue?: number;
   AmountPaid?: number;
   CurrencyCode: string;
+  LineItems?: XeroLineItem[];
 }
 
 interface XeroInvoicesResponse {
@@ -242,7 +256,10 @@ export async function fetchInvoicesForMonth(year: number, month: number) {
   const all: XeroInvoice[] = [];
   let page = 1;
   while (true) {
-    const url = `${API_BASE}/Invoices?where=${encodeURIComponent(where)}&page=${page}&order=Date`;
+    // summaryOnly=false explicitly requests LineItems on each invoice. Without
+    // this, paginated /Invoices returns header-only summaries (no line items),
+    // and we can't apply account-code exclusions per line.
+    const url = `${API_BASE}/Invoices?where=${encodeURIComponent(where)}&page=${page}&order=Date&summaryOnly=false`;
     const res = await fetch(url, {
       headers: {
         Authorization: `Bearer ${conn.accessToken}`,
@@ -260,4 +277,84 @@ export async function fetchInvoicesForMonth(year: number, month: number) {
     page += 1;
   }
   return all;
+}
+
+// Aggregated view of an account code as it actually appears on invoices —
+// fuel for the /account-exclusions discovery page so the user picks codes by
+// recognising them (sample descriptions + totals) rather than guessing.
+export interface AccountCodeUsage {
+  code: string;
+  totalAmount: number;        // ex-VAT total across all matching lines
+  lineCount: number;
+  invoiceCount: number;
+  sampleDescriptions: string[];   // up to 3 distinct, recent-first
+}
+
+// Aggregate account codes across the last N months of invoices.
+// Fetches sequentially (one month at a time) to stay well clear of Xero's
+// 60 calls/min rate limit. Discovery is cached upstream, so the latency hit
+// of serialising is paid at most once per refresh.
+export async function fetchAccountCodeUsage(monthsBack: number): Promise<AccountCodeUsage[]> {
+  const now = new Date();
+  const months: { year: number; month: number }[] = [];
+  let y = now.getUTCFullYear();
+  let m = now.getUTCMonth() + 1;
+  for (let i = 0; i < monthsBack; i++) {
+    months.push({ year: y, month: m });
+    m -= 1;
+    if (m === 0) {
+      m = 12;
+      y -= 1;
+    }
+  }
+
+  const allInvoices: XeroInvoice[] = [];
+  for (const mo of months) {
+    const batch = await fetchInvoicesForMonth(mo.year, mo.month);
+    allInvoices.push(...batch);
+  }
+
+  const byCode = new Map<
+    string,
+    {
+      code: string;
+      totalAmount: number;
+      lineCount: number;
+      invoiceIds: Set<string>;
+      descriptions: Map<string, number>; // dedupe + count
+    }
+  >();
+
+  for (const inv of allInvoices) {
+    for (const line of inv.LineItems ?? []) {
+      const code = (line.AccountCode ?? "").trim();
+      if (!code) continue;
+      const existing = byCode.get(code) ?? {
+        code,
+        totalAmount: 0,
+        lineCount: 0,
+        invoiceIds: new Set<string>(),
+        descriptions: new Map<string, number>(),
+      };
+      existing.totalAmount += line.LineAmount ?? 0;
+      existing.lineCount += 1;
+      existing.invoiceIds.add(inv.InvoiceID);
+      const desc = (line.Description ?? "").trim();
+      if (desc) existing.descriptions.set(desc, (existing.descriptions.get(desc) ?? 0) + 1);
+      byCode.set(code, existing);
+    }
+  }
+
+  const out: AccountCodeUsage[] = [...byCode.values()].map((v) => ({
+    code: v.code,
+    totalAmount: Math.round(v.totalAmount * 100) / 100,
+    lineCount: v.lineCount,
+    invoiceCount: v.invoiceIds.size,
+    sampleDescriptions: [...v.descriptions.entries()]
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 3)
+      .map(([d]) => d),
+  }));
+  out.sort((a, b) => b.totalAmount - a.totalAmount);
+  return out;
 }

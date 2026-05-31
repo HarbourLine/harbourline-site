@@ -67,6 +67,29 @@ model RecurringBilling {
   updatedAt         DateTime @updatedAt
 }
 
+// Xero account codes whose line items are subtracted from the invoice
+// total when computing "billed £". Use for pass-through charges like
+// software subscriptions recharged to clients — these distort the
+// effective £/hr because they're not bookkeeping revenue.
+model ExcludedAccountCode {
+  id        String   @id @default(cuid())
+  code      String   @unique
+  name      String?  // optional human label, e.g. "Software Recharges"
+  createdAt DateTime @default(now())
+}
+
+// Cached output of fetchAccountCodeUsage(). Only ever one row (id="singleton")
+// — we don't want to re-fetch 6 months of invoices from Xero on every visit
+// to /account-exclusions. Refreshed on demand via a button; otherwise served
+// from this row.
+model AccountCodeDiscovery {
+  id         String   @id   // always "singleton"
+  data       Json         // AccountCodeUsage[]
+  monthsBack Int
+  fetchedAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+}
+
 // Cached reconciliation results per (year, month). Computing a month from
 // scratch is slow (Xero pagination + MyHours team-wide fetch); the dashboard
 // needs 6 months at once, so we cache. Re-fetched if older than 24h or via

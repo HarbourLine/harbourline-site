@@ -112,13 +112,16 @@ function buildGroups(mappings: RawMapping[]) {
 export async function reconcileMonth(year: number, month: number): Promise<ReconcileResult> {
   const range = mh.monthRange(year, month);
 
-  const [logs, invoices, mappings, exclusions, recurringAll] = await Promise.all([
-    mh.listLogs(range.from, range.to),
-    xero.fetchInvoicesForMonth(year, month),
-    prisma.clientMapping.findMany(),
-    prisma.excludedName.findMany(),
-    prisma.recurringBilling.findMany(),
-  ]);
+  const [logs, invoices, mappings, exclusions, recurringAll, excludedAccountCodes] =
+    await Promise.all([
+      mh.listLogs(range.from, range.to),
+      xero.fetchInvoicesForMonth(year, month),
+      prisma.clientMapping.findMany(),
+      prisma.excludedName.findMany(),
+      prisma.recurringBilling.findMany(),
+      prisma.excludedAccountCode.findMany(),
+    ]);
+  const excludedCodes = new Set(excludedAccountCodes.map((e) => e.code.trim()));
 
   // Filter recurring billing to those effective in this month.
   const ym = `${year}-${String(month).padStart(2, "0")}`;
@@ -152,18 +155,40 @@ export async function reconcileMonth(year: number, month: number): Promise<Recon
     }
   }
 
-  // Aggregate Xero invoices by contact.
+  // Aggregate Xero invoices by contact. Sum LINE ITEMS rather than the invoice
+  // SubTotal so we can subtract pass-through charges (software recharges, etc.)
+  // by AccountCode. Lines without an AccountCode are included (we assume they're
+  // billable services); excluded codes drop out. If every line on an invoice is
+  // excluded, the invoice contributes zero AND doesn't bump the count — it's
+  // effectively a pure-recharge invoice we don't want to take credit for.
   const xeroByContact = new Map<string, { invoiced: number; count: number; name: string }>();
   for (const inv of invoices) {
     if (isExcluded(inv.Contact.Name)) continue;
+
+    let invoiceAmount = 0;
+    let hasBillableLines = false;
+    if (inv.LineItems && inv.LineItems.length > 0) {
+      for (const line of inv.LineItems) {
+        const code = (line.AccountCode ?? "").trim();
+        if (code && excludedCodes.has(code)) continue;
+        invoiceAmount += line.LineAmount ?? 0;
+        hasBillableLines = true;
+      }
+    } else {
+      // No line items returned (e.g. older snapshot or summary-only response).
+      // Fall back to invoice SubTotal — exclusions can't apply.
+      invoiceAmount = inv.SubTotal ?? 0;
+      hasBillableLines = invoiceAmount !== 0;
+    }
+    if (!hasBillableLines) continue;
+
     const contactId = inv.Contact.ContactID;
     const existing = xeroByContact.get(contactId);
-    const amount = inv.SubTotal ?? 0;
     if (existing) {
-      existing.invoiced += amount;
+      existing.invoiced += invoiceAmount;
       existing.count += 1;
     } else {
-      xeroByContact.set(contactId, { invoiced: amount, count: 1, name: inv.Contact.Name });
+      xeroByContact.set(contactId, { invoiced: invoiceAmount, count: 1, name: inv.Contact.Name });
     }
   }
 
