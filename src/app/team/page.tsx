@@ -104,6 +104,7 @@ function StaffView({ data }: { data: StaffDashboardData }) {
                 <th className="py-2 pr-3 font-medium">Name</th>
                 <th className="py-2 px-3 font-medium text-right">Hours</th>
                 <th className="py-2 px-3 font-medium text-right">Billable</th>
+                <th className="py-2 px-3 font-medium text-right">Over-run</th>
                 <th className="py-2 px-3 font-medium text-right">% billable</th>
                 <th className="py-2 px-3 font-medium text-right">Earned £</th>
                 <th className="py-2 px-3 font-medium text-right">£/hr</th>
@@ -152,6 +153,9 @@ function StaffTableRow({
         <Cell value={anchor ? fmtHrs(anchor.billableHours) : "—"} delta={row.deltas.billableHours} />
       </td>
       <td className="py-2 px-3 text-right tabular-nums">
+        <OverRunCell anchor={anchor} delta={row.deltas.overRunHours} fmtHrs={fmtHrs} />
+      </td>
+      <td className="py-2 px-3 text-right tabular-nums">
         <Cell
           value={anchor ? fmtPct(anchor.billablePercent) : "—"}
           delta={row.deltas.billablePercent}
@@ -178,6 +182,51 @@ function Cell({ value, delta }: { value: string; delta: number | null }) {
   return (
     <div>
       <div>{value}</div>
+      <div className={`text-[10px] ${colour}`}>
+        {delta == null ? "—" : `${positive ? "↑" : "↓"} ${(Math.abs(delta) * 100).toFixed(0)}%`}
+      </div>
+    </div>
+  );
+}
+
+// Over-run is special: more = worse, opposite of every other column. Coloured
+// red when it's a non-trivial portion of billable time, neutral otherwise.
+function OverRunCell({
+  anchor,
+  delta,
+  fmtHrs,
+}: {
+  anchor: { overRunHours?: number; billableHours: number } | null;
+  delta: number | null;
+  fmtHrs: (n: number) => string;
+}) {
+  if (!anchor) {
+    return (
+      <div>
+        <div>—</div>
+        <div className="text-[10px] opacity-50">—</div>
+      </div>
+    );
+  }
+  const overRun = anchor.overRunHours ?? 0;
+  const fraction = anchor.billableHours > 0 ? overRun / anchor.billableHours : 0;
+  // > 10% of billable hours in over-run is worth flagging.
+  const significant = fraction >= 0.1 && overRun >= 1;
+  const valueClass = significant
+    ? "text-red-700 dark:text-red-300 font-medium"
+    : "";
+  // For deltas, an INCREASE in over-run is bad (red), a DECREASE is good (green) —
+  // inverted from the other columns where up is good.
+  const positive = delta != null && delta > 0;
+  const colour =
+    delta == null
+      ? "opacity-50"
+      : positive
+        ? "text-red-700 dark:text-red-300"
+        : "text-emerald-700 dark:text-emerald-300";
+  return (
+    <div>
+      <div className={valueClass}>{fmtHrs(overRun)}</div>
       <div className={`text-[10px] ${colour}`}>
         {delta == null ? "—" : `${positive ? "↑" : "↓"} ${(Math.abs(delta) * 100).toFixed(0)}%`}
       </div>

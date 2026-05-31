@@ -19,6 +19,10 @@ export interface ReconcileRow {
   totalBilled: number;
   // Effective £/hr = totalBilled / billableHours (null if no billable hours).
   effectiveRate: number | null;
+  // Hours implicitly paid for at TARGET_HOURLY_RATE = min(billableHours, totalBilled / target).
+  chargeableHours: number;
+  // Billable hours beyond what the invoice covers at the target rate.
+  overRunHours: number;
   status: "matched" | "unmapped" | "no-time" | "no-invoice";
 }
 
@@ -31,6 +35,12 @@ export interface StaffSummary {
   userName: string;
   hours: number;
   billableHours: number;
+  // billable hours that earned at least TARGET_HOURLY_RATE (i.e. weren't on
+  // over-budget client work)
+  chargeableHours: number;
+  // billable hours beyond what each client's invoice covered at the target
+  // rate — fixed-fee work that ran over budget
+  overRunHours: number;
   earnedAmount: number;
   effectiveRate: number | null;   // earnedAmount / billableHours
   billablePercent: number | null; // billableHours / hours
@@ -62,6 +72,27 @@ const UNASSIGNED = "(unassigned)";
 // minimum-billing increments.
 const RATE_MIN_HOURS = 1;
 const SUB_HOUR_FALLBACK_RATE = 40;
+
+// The rate every billable hour is "expected" to earn. Anything billed less
+// than (billable hours × this rate) is treated as over-run: time we logged
+// but didn't actually charge for. Surfaced per-row and per-staff on the
+// Team page so over-budget client work is visible.
+const TARGET_HOURLY_RATE = 40;
+
+// Split a row's billable hours into (a) the portion the invoice paid for at
+// the target rate and (b) the portion that ran over budget. Used per-row
+// and reused to apportion over-run hours to individual staff.
+function splitBillable(
+  billableHours: number,
+  totalBilled: number,
+): { chargeableHours: number; overRunHours: number } {
+  if (billableHours <= 0) return { chargeableHours: 0, overRunHours: 0 };
+  const chargeableRaw = Math.min(billableHours, Math.max(totalBilled, 0) / TARGET_HOURLY_RATE);
+  return {
+    chargeableHours: round(chargeableRaw),
+    overRunHours: round(billableHours - chargeableRaw),
+  };
+}
 
 function computeRate(
   totalBilled: number,
@@ -318,6 +349,7 @@ export async function reconcileMonth(year: number, month: number): Promise<Recon
       recurringAmount: round(recurringAmount),
       totalBilled: round(totalBilled),
       effectiveRate: computeRate(totalBilled, hours, billableHours),
+      ...splitBillable(billableHours, totalBilled),
       status,
     });
   }
@@ -344,6 +376,7 @@ export async function reconcileMonth(year: number, month: number): Promise<Recon
       recurringAmount: round(directRecurring),
       totalBilled: round(totalBilled),
       effectiveRate: computeRate(totalBilled, agg.hours, agg.billableHours),
+      ...splitBillable(agg.billableHours, totalBilled),
       status: directRecurring > 0 ? "matched" : "unmapped",
     });
     if (directRecurring > 0) seenMhNames.add(name);
@@ -374,6 +407,8 @@ export async function reconcileMonth(year: number, month: number): Promise<Recon
       recurringAmount: round(r.amount),
       totalBilled: round(r.amount),
       effectiveRate: null,
+      chargeableHours: 0,
+      overRunHours: 0,
       status: "no-time",
     });
   }
@@ -410,13 +445,14 @@ export async function reconcileMonth(year: number, month: number): Promise<Recon
   // underlying clients, proportionally to their billable-hour share. Use only
   // active rows so we mirror what's actually displayed on the reconcile view.
   // A user's per-row earnings: (their billable hours on that row's clients)
-  // / (row's total billable hours) * row.totalBilled.
+  // / (row's total billable hours) * row.totalBilled. We also apportion the
+  // row's chargeable/over-run split the same way, so each user's total
+  // over-run hours = their share of the time the firm couldn't bill for.
   const userEarned = new Map<number, number>();
+  const userChargeable = new Map<number, number>();
+  const userOverRun = new Map<number, number>();
   for (const row of activeRows) {
-    if (row.billableHours <= 0 || row.totalBilled <= 0) continue;
-    // The row's "clients" are the MH names in its group (mapped) or the single
-    // unmapped MH name. For each user, sum their billable hours across those
-    // names, then award the proportional share.
+    if (row.billableHours <= 0) continue;
     const clientNames = row.myHoursNames;
     if (clientNames.length === 0) continue;
     for (const [userId, byClient] of userByClient) {
@@ -427,8 +463,12 @@ export async function reconcileMonth(year: number, month: number): Promise<Recon
       }
       if (userBillable <= 0) continue;
       const share = userBillable / row.billableHours;
-      const earned = share * row.totalBilled;
-      userEarned.set(userId, (userEarned.get(userId) ?? 0) + earned);
+      if (row.totalBilled > 0) {
+        const earned = share * row.totalBilled;
+        userEarned.set(userId, (userEarned.get(userId) ?? 0) + earned);
+      }
+      userChargeable.set(userId, (userChargeable.get(userId) ?? 0) + share * row.chargeableHours);
+      userOverRun.set(userId, (userOverRun.get(userId) ?? 0) + share * row.overRunHours);
     }
   }
 
@@ -441,6 +481,8 @@ export async function reconcileMonth(year: number, month: number): Promise<Recon
       userName: userNameById.get(userId) ?? `User ${userId}`,
       hours: round(ut.hours),
       billableHours: round(ut.billableHours),
+      chargeableHours: round(userChargeable.get(userId) ?? 0),
+      overRunHours: round(userOverRun.get(userId) ?? 0),
       earnedAmount: round(earnedAmount),
       effectiveRate: ut.billableHours > 0 ? round(earnedAmount / ut.billableHours) : null,
       billablePercent:
