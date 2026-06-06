@@ -71,9 +71,14 @@ export default async function XpmSyncPage() {
         <h2 className="font-medium">Import From CSV</h2>
         <p className="text-sm opacity-70">
           Export your client list (and optionally your contact list) from XPM&apos;s UI as CSV,
-          then upload them here. Headers are matched flexibly — common variations like &quot;Client
-          ID&quot; / &quot;ClientID&quot; / &quot;Name&quot; / &quot;Client Name&quot; etc. all
-          work. Idempotent: re-running just updates existing records.
+          then upload them here. Matches existing records by XPM UUID; re-running just refreshes,
+          it won&apos;t duplicate.
+        </p>
+        <p className="text-xs opacity-60">
+          Note: XPM&apos;s standard CSV export doesn&apos;t include VAT number, company number,
+          UTR, or financial year end — those fields will stay blank until Xero grants the
+          Practice Manager API access (which has every field). For now you can add them by hand
+          on the client detail page if you need them.
         </p>
         <CsvUploadForm />
       </section>

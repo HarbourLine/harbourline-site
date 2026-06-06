@@ -67,11 +67,15 @@ export async function syncWithData(
       status: mapStatus(c.status),
       xpmStatus: c.status,
       xpmLastSyncedAt: now,
+      email: c.email ?? null,
+      phone: c.phone ?? null,
+      website: c.website ?? null,
       companyNumber: c.businessNumber ?? null,
       vatNumber: c.taxNumber ?? null,
       utr: c.utr ?? null,
       payeReference: c.payeReference ?? null,
       tradingAddress: c.physicalAddress ?? c.postalAddress ?? null,
+      postalAddress: c.postalAddress ?? null,
       financialYearEnd: fyEndDate(c.fyEndDay, c.fyEndMonth),
       // Prisma JSON nullable fields need DbNull sentinel rather than plain
       // null, so we don't accidentally set the column to JSON null vs SQL NULL.

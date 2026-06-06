@@ -83,10 +83,19 @@ export default async function ClientDetailPage({
       </header>
 
       <section className="grid gap-4 md:grid-cols-2">
+        <Card title="Contact">
+          <KV label="Email" value={client.email} />
+          <KV label="Phone" value={client.phone} />
+          <KV label="Website" value={client.website} />
+        </Card>
+
         <Card title="Trading Details">
           <KV label="Company Number" value={client.companyNumber} />
           <KV label="VAT Number" value={client.vatNumber} />
+          <KV label="UTR" value={client.utr} />
+          <KV label="PAYE Reference" value={client.payeReference} />
           <KV label="Trading Address" value={client.tradingAddress} />
+          <KV label="Postal Address" value={client.postalAddress} />
           <KV label="Financial Year End" value={fmtDate(client.financialYearEnd)} />
         </Card>
 
