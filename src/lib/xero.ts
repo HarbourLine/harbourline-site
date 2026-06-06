@@ -10,17 +10,15 @@ const API_BASE = "https://api.xero.com/api.xro/2.0";
 
 // Xero introduced granular scopes on 2 March 2026. Apps created on/after
 // that date no longer have access to the broad scopes (accounting.transactions,
-// accounting.contacts, practicemanager). We use the granular .read variants
-// where possible, plus a write scope for the auto-invoice feature.
+// accounting.contacts). We use the granular .read variants where possible,
+// plus a write scope for the auto-invoice feature.
 // Docs: https://developer.xero.com/documentation/guides/oauth2/scopes/
 //
-// accounting.invoices covers read+write on Invoices. practicemanager.client.read
-// and practicemanager.contact.read grant read access to XPM clients and
-// contacts via the api.xero.com/practicemanager/3.0 endpoint. After updating
-// this list, the user must disconnect + reconnect Xero from the dashboard
-// so the new permissions are granted to the refresh token. The app must
-// also have these APIs enabled in the Xero developer console (My Apps →
-// your app → Configuration → APIs).
+// Practice Manager scopes (practicemanager.client.read /
+// practicemanager.contact.read) are deliberately NOT included here — Xero
+// must explicitly enable XPM API access on the developer app before the
+// auth screen will accept those scopes. Once Xero grants access we re-add
+// them; until then, the CSV import path covers XPM data ingestion.
 export const XERO_SCOPES = [
   "offline_access",
   "openid",
@@ -28,8 +26,6 @@ export const XERO_SCOPES = [
   "email",
   "accounting.invoices",
   "accounting.contacts.read",
-  "practicemanager.client.read",
-  "practicemanager.contact.read",
 ].join(" ");
 
 function requireEnv(name: string): string {
