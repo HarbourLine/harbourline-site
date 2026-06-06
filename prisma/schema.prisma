@@ -48,12 +48,17 @@ model Client {
   id                String       @id @default(cuid())
   name              String
   status            ClientStatus @default(ACTIVE)
+  // Contact details on the client itself (separate from per-contact people)
+  email             String?
+  phone             String?
+  website           String?
   // Trading details
   companyNumber     String?
   vatNumber         String?
   utr               String?      // UK Unique Taxpayer Reference
   payeReference     String?
   tradingAddress    String?
+  postalAddress     String?
   financialYearEnd  DateTime?    // day of year matters; year ignored at display time
   // Commercial
   defaultHourlyRate Float?

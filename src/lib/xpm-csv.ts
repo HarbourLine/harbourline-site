@@ -3,11 +3,10 @@ import type { XpmClient, XpmContact } from "./xpm-sync";
 
 // Lookup the first present value from a row, given an ordered list of
 // candidate column names. Case-insensitive, whitespace-tolerant — so we
-// can absorb the various header spellings XPM uses in its exports
-// ("Client ID" / "ClientID" / "ID" / "GUID" etc.).
+// can absorb the various header spellings XPM uses ("StreetAddress1" /
+// "Street Address 1" / "Address1" etc.).
 function pick(row: Record<string, string>, candidates: string[]): string | undefined {
   const norm = (s: string) => s.replace(/\s+/g, "").toLowerCase();
-  // Pre-normalise the row keys once.
   const lookup = new Map<string, string>();
   for (const [k, v] of Object.entries(row)) lookup.set(norm(k), (v ?? "").trim());
   for (const c of candidates) {
@@ -23,22 +22,32 @@ function toNumberOrUndef(s: string | undefined): number | undefined {
   return Number.isFinite(n) ? n : undefined;
 }
 
+// Build a multi-line address from a numbered set of address columns plus
+// city/region/postcode/country. Drops empty parts; returns undefined if the
+// whole address would be empty.
+function buildAddress(
+  row: Record<string, string>,
+  prefix: "Street" | "Postal",
+): string | undefined {
+  const parts = [
+    pick(row, [`${prefix}Address1`, `${prefix} Address 1`, `${prefix}1`]),
+    pick(row, [`${prefix}Address2`, `${prefix} Address 2`, `${prefix}2`]),
+    pick(row, [`${prefix}Address3`, `${prefix} Address 3`, `${prefix}3`]),
+    pick(row, [`${prefix}Address4`, `${prefix} Address 4`, `${prefix}4`]),
+    pick(row, [`${prefix}Address5`, `${prefix} Address 5`, `${prefix}5`]),
+    pick(row, [`${prefix}City`, "City", "Town", "Suburb"]),
+    pick(row, [`${prefix}Region`, "Region", "County", "State"]),
+    pick(row, [`${prefix}PostCode`, "PostCode", "Post Code", "Postcode", "Zip"]),
+    pick(row, [`${prefix}Country`, "Country"]),
+  ].filter((p): p is string => Boolean(p && p.length > 0));
+  return parts.length > 0 ? parts.join("\n") : undefined;
+}
+
 function rowToClient(row: Record<string, string>): XpmClient | null {
-  const id = pick(row, ["Client ID", "ClientID", "ID", "GUID", "UUID"]);
+  // XPM exports use UUID as the canonical client identifier.
+  const id = pick(row, ["UUID", "ClientID", "Client ID", "ID", "GUID"]);
   const name = pick(row, ["Name", "Client Name", "Client", "Business Name"]);
   if (!id || !name) return null;
-
-  // Address — XPM exports often give one column per line.
-  const addressParts = [
-    pick(row, ["Address 1", "Address1", "Postal Address 1", "Street 1"]),
-    pick(row, ["Address 2", "Address2", "Postal Address 2", "Street 2"]),
-    pick(row, ["Address 3", "Address3"]),
-    pick(row, ["City", "Town", "Suburb"]),
-    pick(row, ["Region", "County", "State"]),
-    pick(row, ["Post Code", "PostCode", "Postcode", "Zip"]),
-    pick(row, ["Country"]),
-  ].filter((p): p is string => Boolean(p && p.length > 0));
-  const tradingAddress = addressParts.length > 0 ? addressParts.join("\n") : undefined;
 
   return {
     id,
@@ -47,35 +56,53 @@ function rowToClient(row: Record<string, string>): XpmClient | null {
     type: pick(row, ["Type", "Client Type", "Category"]),
     email: pick(row, ["Email", "Primary Email"]),
     phone: pick(row, ["Phone", "Phone Number"]),
-    website: pick(row, ["Website", "URL"]),
+    website: pick(row, ["WebSite", "Website", "URL"]),
     taxNumber: pick(row, ["VAT Number", "VAT", "Tax Number", "TaxNumber"]),
-    businessNumber: pick(row, ["Company Number", "CompanyNumber", "Business Number", "BusinessNumber"]),
+    businessNumber: pick(row, [
+      "Company Number",
+      "CompanyNumber",
+      "Business Number",
+      "BusinessNumber",
+    ]),
     utr: pick(row, ["UTR", "Unique Taxpayer Reference"]),
     payeReference: pick(row, ["PAYE", "PAYE Reference", "PAYEReference"]),
     fyEndDay: toNumberOrUndef(pick(row, ["FY End Day", "Financial Year End Day", "Year End Day"])),
     fyEndMonth: toNumberOrUndef(pick(row, ["FY End Month", "Financial Year End Month", "Year End Month"])),
-    postalAddress: tradingAddress,
-    physicalAddress: tradingAddress,
+    physicalAddress: buildAddress(row, "Street"),
+    postalAddress: buildAddress(row, "Postal"),
     customFields: undefined,
-    primaryContactId: pick(row, ["Primary Contact ID", "PrimaryContactID"]),
+    primaryContactId: undefined,
   };
 }
 
+// Split a single "John Smith" / "Mary Anne Smith" into first + last on the
+// LAST whitespace, which is the conventional read for English names.
+function splitName(full: string): { firstName: string; lastName?: string } {
+  const trimmed = full.trim();
+  if (!trimmed) return { firstName: "" };
+  const idx = trimmed.lastIndexOf(" ");
+  if (idx < 0) return { firstName: trimmed };
+  return { firstName: trimmed.slice(0, idx).trim(), lastName: trimmed.slice(idx + 1).trim() };
+}
+
 function rowToContact(row: Record<string, string>): XpmContact | null {
-  const id = pick(row, ["Contact ID", "ContactID", "ID", "GUID"]);
+  // XPM uses ContactUUID as the canonical contact identifier; ClientUUID is
+  // the cross-reference back to the Client.
+  const id = pick(row, ["ContactUUID", "Contact ID", "ContactID", "ID", "GUID"]);
   if (!id) return null;
-  // Client linkage — XPM CSV may use either ClientID or the client's name.
-  const clientId =
-    pick(row, ["Client ID", "ClientID"]) ??
-    pick(row, ["Client", "Client Name"]); // fallback to name; sync layer matches by xpmClientId so name match fails — we handle this in the sync step
+  const clientId = pick(row, ["ClientUUID", "Client UUID", "Client ID", "ClientID"]);
+  const fullName = pick(row, ["ContactName", "Contact Name", "Full Name", "Name"]);
+  const split = fullName ? splitName(fullName) : { firstName: undefined, lastName: undefined };
+  const firstName = pick(row, ["First Name", "FirstName", "Given Name"]) ?? split.firstName;
+  const lastName = pick(row, ["Last Name", "LastName", "Surname", "Family Name"]) ?? split.lastName;
   return {
     id,
-    firstName: pick(row, ["First Name", "FirstName", "Given Name"]),
-    lastName: pick(row, ["Last Name", "LastName", "Surname", "Family Name"]),
-    email: pick(row, ["Email", "Email Address"]),
-    phone: pick(row, ["Phone", "Phone Number"]),
-    mobile: pick(row, ["Mobile", "Mobile Number", "Cell"]),
-    jobTitle: pick(row, ["Job Title", "JobTitle", "Position", "Role"]),
+    firstName,
+    lastName,
+    email: pick(row, ["ContactEmail", "Email", "Email Address"]),
+    phone: pick(row, ["ContactPhone", "Phone", "Phone Number"]),
+    mobile: pick(row, ["ContactMobile", "Mobile", "Mobile Number", "Cell"]),
+    jobTitle: pick(row, ["ContactPosition", "Job Title", "JobTitle", "Position", "Role"]),
     clientIds: clientId ? [clientId] : [],
     isPrimary: undefined,
   };
