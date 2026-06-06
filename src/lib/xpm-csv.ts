@@ -112,7 +112,9 @@ export function parseClientsCsv(text: string): XpmClient[] {
   const result = Papa.parse<Record<string, string>>(text, {
     header: true,
     skipEmptyLines: true,
-    transformHeader: (h) => h.trim(),
+    transformHeader: (h) => h.trim().replace(/^﻿/, ""), // strip BOM
+    delimiter: "", // auto-detect (comma / tab / pipe / semicolon)
+    delimitersToGuess: [",", "\t", "|", ";"],
   });
   return result.data
     .map((r) => rowToClient(r))
@@ -123,9 +125,84 @@ export function parseContactsCsv(text: string): XpmContact[] {
   const result = Papa.parse<Record<string, string>>(text, {
     header: true,
     skipEmptyLines: true,
-    transformHeader: (h) => h.trim(),
+    transformHeader: (h) => h.trim().replace(/^﻿/, ""),
+    delimiter: "",
+    delimitersToGuess: [",", "\t", "|", ";"],
   });
   return result.data
     .map((r) => rowToContact(r))
     .filter((c): c is XpmContact => c !== null);
+}
+
+// Diagnostic — return shape info about what was parsed so we can show it on
+// the UI when something doesn't look right. Helps distinguish "delimiter
+// wrong" from "column names wrong" from "data wasn't there to start with".
+export function diagnoseClients(text: string): {
+  rowCount: number;
+  headers: string[];
+  withEmail: number;
+  withPhone: number;
+  withWebsite: number;
+  withAddress: number;
+  withVatNumber: number;
+  withCompanyNumber: number;
+} {
+  const result = Papa.parse<Record<string, string>>(text, {
+    header: true,
+    skipEmptyLines: true,
+    transformHeader: (h) => h.trim().replace(/^﻿/, ""),
+    delimiter: "",
+    delimitersToGuess: [",", "\t", "|", ";"],
+  });
+  const rows = result.data;
+  const headers = result.meta.fields ?? [];
+  let withEmail = 0, withPhone = 0, withWebsite = 0, withAddress = 0;
+  let withVatNumber = 0, withCompanyNumber = 0;
+  for (const r of rows) {
+    const c = rowToClient(r);
+    if (!c) continue;
+    if (c.email) withEmail++;
+    if (c.phone) withPhone++;
+    if (c.website) withWebsite++;
+    if (c.physicalAddress || c.postalAddress) withAddress++;
+    if (c.taxNumber) withVatNumber++;
+    if (c.businessNumber) withCompanyNumber++;
+  }
+  return {
+    rowCount: rows.length,
+    headers,
+    withEmail,
+    withPhone,
+    withWebsite,
+    withAddress,
+    withVatNumber,
+    withCompanyNumber,
+  };
+}
+
+export function diagnoseContacts(text: string): {
+  rowCount: number;
+  headers: string[];
+  withId: number;
+  withClientId: number;
+  withName: number;
+} {
+  const result = Papa.parse<Record<string, string>>(text, {
+    header: true,
+    skipEmptyLines: true,
+    transformHeader: (h) => h.trim().replace(/^﻿/, ""),
+    delimiter: "",
+    delimitersToGuess: [",", "\t", "|", ";"],
+  });
+  const rows = result.data;
+  const headers = result.meta.fields ?? [];
+  let withId = 0, withClientId = 0, withName = 0;
+  for (const r of rows) {
+    const ct = rowToContact(r);
+    if (!ct) continue;
+    if (ct.id) withId++;
+    if (ct.clientIds.length > 0) withClientId++;
+    if (ct.firstName || ct.lastName) withName++;
+  }
+  return { rowCount: rows.length, headers, withId, withClientId, withName };
 }
