@@ -24,8 +24,9 @@ export async function GET(req: NextRequest) {
     if (connections.length === 0) {
       return NextResponse.redirect(new URL("/?xero_error=no_tenant", req.url));
     }
-    // For MVP: pick the first organisation. UI can offer a selector later.
-    await saveConnection(tokens, connections[0]);
+    // saveConnection picks the ORGANISATION tenant as primary and stores
+    // any PRACTICEMANAGER tenant alongside it for XPM sync.
+    await saveConnection(tokens, connections);
     return NextResponse.redirect(new URL("/?xero=connected", req.url));
   } catch (e) {
     const msg = e instanceof Error ? e.message : "unknown";
