@@ -2,6 +2,8 @@ import { Prisma } from "@prisma/client";
 import { prisma } from "./db";
 import { fetchAllClients, fetchAllContacts, type XpmClient, type XpmContact } from "./xpm";
 
+export type { XpmClient, XpmContact };
+
 export interface XpmSyncResult {
   fetchedClients: number;
   fetchedContacts: number;
@@ -37,10 +39,15 @@ function fyEndDate(day?: number, month?: number): Date | null {
   return new Date(Date.UTC(2000, month - 1, day));
 }
 
-export async function syncFromXpm(includeArchived: boolean): Promise<XpmSyncResult> {
+// Core upsert logic. Takes already-collected XPM data and writes it into the
+// DB. Used by both the API-driven sync (syncFromXpm) and the CSV import path.
+export async function syncWithData(
+  clients: XpmClient[],
+  contacts: XpmContact[],
+): Promise<XpmSyncResult> {
   const result: XpmSyncResult = {
-    fetchedClients: 0,
-    fetchedContacts: 0,
+    fetchedClients: clients.length,
+    fetchedContacts: contacts.length,
     clientsCreated: 0,
     clientsUpdated: 0,
     contactsCreated: 0,
@@ -48,22 +55,6 @@ export async function syncFromXpm(includeArchived: boolean): Promise<XpmSyncResu
     contactsOrphaned: 0,
     errors: [],
   };
-
-  let clients: XpmClient[] = [];
-  let contacts: XpmContact[] = [];
-  try {
-    clients = await fetchAllClients(includeArchived);
-    result.fetchedClients = clients.length;
-  } catch (e) {
-    result.errors.push(`fetchAllClients: ${e instanceof Error ? e.message : String(e)}`);
-    return result;
-  }
-  try {
-    contacts = await fetchAllContacts();
-    result.fetchedContacts = contacts.length;
-  } catch (e) {
-    result.errors.push(`fetchAllContacts: ${e instanceof Error ? e.message : String(e)}`);
-  }
 
   // Upsert clients keyed by xpmClientId.
   const now = new Date();
@@ -166,4 +157,37 @@ export async function syncFromXpm(includeArchived: boolean): Promise<XpmSyncResu
   }
 
   return result;
+}
+
+// Live-API path: fetches from XPM then runs the upsert. Requires the
+// practicemanager scope on the Xero connection.
+export async function syncFromXpm(includeArchived: boolean): Promise<XpmSyncResult> {
+  let clients: XpmClient[] = [];
+  let contacts: XpmContact[] = [];
+  const errors: string[] = [];
+  try {
+    clients = await fetchAllClients(includeArchived);
+  } catch (e) {
+    errors.push(`fetchAllClients: ${e instanceof Error ? e.message : String(e)}`);
+  }
+  try {
+    contacts = await fetchAllContacts();
+  } catch (e) {
+    errors.push(`fetchAllContacts: ${e instanceof Error ? e.message : String(e)}`);
+  }
+  if (errors.length > 0 && clients.length === 0) {
+    return {
+      fetchedClients: 0,
+      fetchedContacts: 0,
+      clientsCreated: 0,
+      clientsUpdated: 0,
+      contactsCreated: 0,
+      contactsUpdated: 0,
+      contactsOrphaned: 0,
+      errors,
+    };
+  }
+  const r = await syncWithData(clients, contacts);
+  r.errors.unshift(...errors);
+  return r;
 }
