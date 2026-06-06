@@ -3,7 +3,17 @@
 import { revalidatePath } from "next/cache";
 import { requireRole } from "@/lib/permissions";
 import { syncFromXpm, syncWithData, type XpmSyncResult } from "@/lib/xpm-sync";
-import { parseClientsCsv, parseContactsCsv } from "@/lib/xpm-csv";
+import {
+  diagnoseClients,
+  diagnoseContacts,
+  parseClientsCsv,
+  parseContactsCsv,
+} from "@/lib/xpm-csv";
+
+export interface XpmCsvSyncResult extends XpmSyncResult {
+  clientsDiagnostic: ReturnType<typeof diagnoseClients> | null;
+  contactsDiagnostic: ReturnType<typeof diagnoseContacts> | null;
+}
 
 // Run the XPM sync via the live Practice Manager API. Requires the Xero
 // connection to have the practicemanager scope granted.
@@ -17,7 +27,7 @@ export async function runXpmSync(): Promise<XpmSyncResult> {
 
 // Run the XPM sync from CSV files exported from the XPM UI. Either or both
 // of clientsCsv / contactsCsv can be provided.
-export async function runXpmSyncFromCsv(formData: FormData): Promise<XpmSyncResult> {
+export async function runXpmSyncFromCsv(formData: FormData): Promise<XpmCsvSyncResult> {
   await requireRole("MANAGER");
   const clientsFile = formData.get("clients") as File | null;
   const contactsFile = formData.get("contacts") as File | null;
@@ -37,13 +47,18 @@ export async function runXpmSyncFromCsv(formData: FormData): Promise<XpmSyncResu
       contactsUpdated: 0,
       contactsOrphaned: 0,
       errors: ["No CSV files supplied. Upload at least one."],
+      clientsDiagnostic: null,
+      contactsDiagnostic: null,
     };
   }
+
+  const clientsDiagnostic = clientsText ? diagnoseClients(clientsText) : null;
+  const contactsDiagnostic = contactsText ? diagnoseContacts(contactsText) : null;
 
   const clients = clientsText ? parseClientsCsv(clientsText) : [];
   const contacts = contactsText ? parseContactsCsv(contactsText) : [];
   const result = await syncWithData(clients, contacts);
   revalidatePath("/settings/xpm-sync");
   revalidatePath("/clients");
-  return result;
+  return { ...result, clientsDiagnostic, contactsDiagnostic };
 }

@@ -2,7 +2,7 @@
 
 import { useState, useTransition } from "react";
 import type { XpmSyncResult } from "@/lib/xpm-sync";
-import { runXpmSync, runXpmSyncFromCsv } from "./actions";
+import { runXpmSync, runXpmSyncFromCsv, type XpmCsvSyncResult } from "./actions";
 
 export function SyncButton() {
   const [pending, startTransition] = useTransition();
@@ -38,7 +38,7 @@ export function SyncButton() {
 
 export function CsvUploadForm() {
   const [pending, startTransition] = useTransition();
-  const [result, setResult] = useState<XpmSyncResult | null>(null);
+  const [result, setResult] = useState<XpmCsvSyncResult | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   return (
@@ -70,6 +70,52 @@ export function CsvUploadForm() {
       </button>
 
       <ResultPanel result={result} error={error} />
+      {result && (result.clientsDiagnostic || result.contactsDiagnostic) && (
+        <div className="rounded-md border border-current/20 px-3 py-2 text-xs space-y-2">
+          <div className="font-medium opacity-80">Diagnostic</div>
+          {result.clientsDiagnostic && (
+            <div>
+              <div className="opacity-70 mb-1">
+                Clients CSV — {result.clientsDiagnostic.rowCount} rows · detected{" "}
+                {result.clientsDiagnostic.headers.length} columns
+              </div>
+              <ul className="opacity-80 space-y-0.5">
+                <li>With email: {result.clientsDiagnostic.withEmail}</li>
+                <li>With phone: {result.clientsDiagnostic.withPhone}</li>
+                <li>With website: {result.clientsDiagnostic.withWebsite}</li>
+                <li>With address: {result.clientsDiagnostic.withAddress}</li>
+                <li>With VAT number: {result.clientsDiagnostic.withVatNumber}</li>
+                <li>With company number: {result.clientsDiagnostic.withCompanyNumber}</li>
+              </ul>
+              <details className="mt-1">
+                <summary className="cursor-pointer opacity-70">Detected headers</summary>
+                <div className="font-mono mt-1 opacity-70 break-all">
+                  {result.clientsDiagnostic.headers.join(" | ")}
+                </div>
+              </details>
+            </div>
+          )}
+          {result.contactsDiagnostic && (
+            <div>
+              <div className="opacity-70 mb-1">
+                Contacts CSV — {result.contactsDiagnostic.rowCount} rows · detected{" "}
+                {result.contactsDiagnostic.headers.length} columns
+              </div>
+              <ul className="opacity-80 space-y-0.5">
+                <li>With contact ID: {result.contactsDiagnostic.withId}</li>
+                <li>With client ID: {result.contactsDiagnostic.withClientId}</li>
+                <li>With name: {result.contactsDiagnostic.withName}</li>
+              </ul>
+              <details className="mt-1">
+                <summary className="cursor-pointer opacity-70">Detected headers</summary>
+                <div className="font-mono mt-1 opacity-70 break-all">
+                  {result.contactsDiagnostic.headers.join(" | ")}
+                </div>
+              </details>
+            </div>
+          )}
+        </div>
+      )}
     </form>
   );
 }
