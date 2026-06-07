@@ -78,6 +78,13 @@ model Client {
   xpmClientId       String?      @unique
   xpmStatus         String?      // raw XPM status string, kept for audit
   xpmLastSyncedAt   DateTime?
+  // Companies House cache — populated when companyNumber is set. Refreshed
+  // on demand via the Sync button on the client detail page.
+  registeredAddress              String?
+  nextYearEnd                    DateTime?  // accounts.next_made_up_to
+  nextAccountsDue                DateTime?  // accounts.next_due
+  nextConfirmationStatementDue   DateTime?  // confirmation_statement.next_due
+  companiesHouseLastSyncedAt     DateTime?
 
   accountManager    Staff?       @relation("ClientsManaged", fields: [accountManagerId], references: [id])
   links             ClientLink[]

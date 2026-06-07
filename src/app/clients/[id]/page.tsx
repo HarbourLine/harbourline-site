@@ -2,7 +2,9 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { prisma } from "@/lib/db";
 import { currentStaff, hasRole } from "@/lib/permissions";
+import { fetchCompanyProfile } from "@/lib/companies-house";
 import { addLink, deleteClient, removeLink } from "../actions";
+import { CompaniesHouseSyncButton } from "./CompaniesHouseSyncButton";
 
 export const dynamic = "force-dynamic";
 
@@ -49,7 +51,7 @@ export default async function ClientDetailPage({
   if (!me) return <p className="text-sm opacity-70">Sign in required.</p>;
 
   const { id } = await params;
-  const client = await prisma.client.findUnique({
+  let client = await prisma.client.findUnique({
     where: { id },
     include: {
       accountManager: { select: { id: true, name: true } },
@@ -58,6 +60,33 @@ export default async function ClientDetailPage({
     },
   });
   if (!client) notFound();
+
+  // First-time Companies House lookup: if we have a company number but have
+  // never synced, fetch it now so the page renders with data instead of an
+  // empty section. Wrapped in try/catch so a CH outage doesn't break the
+  // page; the user can hit the manual button later.
+  if (client.companyNumber && !client.companiesHouseLastSyncedAt) {
+    try {
+      const profile = await fetchCompanyProfile(client.companyNumber);
+      client = await prisma.client.update({
+        where: { id },
+        data: {
+          registeredAddress: profile.registeredAddress,
+          nextYearEnd: profile.nextYearEnd,
+          nextAccountsDue: profile.nextAccountsDue,
+          nextConfirmationStatementDue: profile.nextConfirmationStatementDue,
+          companiesHouseLastSyncedAt: new Date(),
+        },
+        include: {
+          accountManager: { select: { id: true, name: true } },
+          links: { orderBy: [{ source: "asc" }, { externalKey: "asc" }] },
+          contacts: { orderBy: [{ isPrimary: "desc" }, { lastName: "asc" }, { firstName: "asc" }] },
+        },
+      });
+    } catch (e) {
+      console.warn(`[companies-house] first-time sync failed for ${client.companyNumber}:`, e);
+    }
+  }
 
   const canEdit = hasRole(me.role, "MANAGER");
   const isOwner = hasRole(me.role, "OWNER");
@@ -78,13 +107,17 @@ export default async function ClientDetailPage({
   ].filter((c): c is string => Boolean(c));
 
   const hasContact = client.email || client.phone || client.website;
-  const hasAddresses = client.tradingAddress || client.postalAddress;
+  const hasAddresses =
+    client.tradingAddress || client.postalAddress || client.registeredAddress;
   const hasStatutory =
     client.companyNumber ||
     client.vatNumber ||
     client.utr ||
     client.payeReference ||
     client.financialYearEnd ||
+    client.nextYearEnd ||
+    client.nextAccountsDue ||
+    client.nextConfirmationStatementDue ||
     client.amlStatus !== "NOT_REQUIRED" ||
     client.amlExpiresAt;
   const hasCommercial = client.defaultHourlyRate != null || client.accountManager;
@@ -120,7 +153,7 @@ export default async function ClientDetailPage({
       </header>
 
       {hasContact && (
-        <Section title="Contact">
+        <Section title="Client Contact Information">
           <FieldRow label="Email">
             {client.email ? (
               <a className="hover:underline" href={`mailto:${client.email}`}>{client.email}</a>
@@ -155,11 +188,19 @@ export default async function ClientDetailPage({
               <pre className="font-sans whitespace-pre-wrap text-sm">{client.tradingAddress}</pre>
             </FieldRow>
           )}
-          {client.postalAddress && client.postalAddress !== client.tradingAddress && (
-            <FieldRow label="Postal">
-              <pre className="font-sans whitespace-pre-wrap text-sm">{client.postalAddress}</pre>
-            </FieldRow>
-          )}
+          {client.registeredAddress &&
+            client.registeredAddress !== client.tradingAddress && (
+              <FieldRow label="Registered">
+                <pre className="font-sans whitespace-pre-wrap text-sm">{client.registeredAddress}</pre>
+              </FieldRow>
+            )}
+          {client.postalAddress &&
+            client.postalAddress !== client.tradingAddress &&
+            client.postalAddress !== client.registeredAddress && (
+              <FieldRow label="Postal">
+                <pre className="font-sans whitespace-pre-wrap text-sm">{client.postalAddress}</pre>
+              </FieldRow>
+            )}
         </Section>
       )}
 
@@ -170,6 +211,11 @@ export default async function ClientDetailPage({
           <FieldRow label="UTR">{client.utr}</FieldRow>
           <FieldRow label="PAYE Reference">{client.payeReference}</FieldRow>
           <FieldRow label="Financial Year End">{fmtDate(client.financialYearEnd)}</FieldRow>
+          <FieldRow label="Next Year End">{fmtDate(client.nextYearEnd)}</FieldRow>
+          <FieldRow label="Accounts Due">{fmtDate(client.nextAccountsDue)}</FieldRow>
+          <FieldRow label="Confirmation Statement Due">
+            {fmtDate(client.nextConfirmationStatementDue)}
+          </FieldRow>
           {client.amlStatus !== "NOT_REQUIRED" && (
             <FieldRow label="AML">
               <span className="inline-flex items-center gap-2">
@@ -181,6 +227,16 @@ export default async function ClientDetailPage({
                 )}
               </span>
             </FieldRow>
+          )}
+          {canEdit && client.companyNumber && (
+            <div className="pt-2 border-t border-current/10 mt-3 flex items-center gap-3 flex-wrap">
+              <CompaniesHouseSyncButton clientId={client.id} />
+              {client.companiesHouseLastSyncedAt && (
+                <span className="text-xs opacity-60">
+                  Last synced {fmtDate(client.companiesHouseLastSyncedAt)}
+                </span>
+              )}
+            </div>
           )}
         </Section>
       )}
