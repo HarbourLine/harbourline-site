@@ -4,7 +4,13 @@ import { prisma } from "@/lib/db";
 import { currentStaff, hasRole } from "@/lib/permissions";
 import { fetchCompanyProfile } from "@/lib/companies-house";
 import { addLink, deleteClient, removeLink } from "../actions";
-import { CompaniesHouseSyncButton } from "./CompaniesHouseSyncButton";
+import { CopyableField } from "./CopyableField";
+
+// Companies House cache is refreshed at most once every 30 days per
+// client. Filings move slowly (annually for accounts; rarely for the
+// registered address) so weekly/monthly is plenty. Under the CH
+// rate limit (600 req / 5 min / IP) by a huge margin.
+const CH_REFRESH_INTERVAL_MS = 30 * 24 * 60 * 60 * 1000;
 
 export const dynamic = "force-dynamic";
 
@@ -61,11 +67,14 @@ export default async function ClientDetailPage({
   });
   if (!client) notFound();
 
-  // First-time Companies House lookup: if we have a company number but have
-  // never synced, fetch it now so the page renders with data instead of an
-  // empty section. Wrapped in try/catch so a CH outage doesn't break the
-  // page; the user can hit the manual button later.
-  if (client.companyNumber && !client.companiesHouseLastSyncedAt) {
+  // Companies House refresh: fetch on first view, then again whenever the
+  // cached data is older than CH_REFRESH_INTERVAL_MS. Wrapped in try/catch
+  // so a CH outage just renders the cached (or empty) data instead of
+  // breaking the page.
+  const chStale =
+    !client.companiesHouseLastSyncedAt ||
+    Date.now() - client.companiesHouseLastSyncedAt.getTime() > CH_REFRESH_INTERVAL_MS;
+  if (client.companyNumber && chStale) {
     try {
       const profile = await fetchCompanyProfile(client.companyNumber);
       client = await prisma.client.update({
@@ -206,8 +215,12 @@ export default async function ClientDetailPage({
 
       {hasStatutory && (
         <Section title="Statutory & Tax">
-          <FieldRow label="Company Number">{client.companyNumber}</FieldRow>
-          <FieldRow label="VAT Number">{client.vatNumber}</FieldRow>
+          <FieldRow label="Company Number">
+            {client.companyNumber ? <CopyableField value={client.companyNumber} /> : null}
+          </FieldRow>
+          <FieldRow label="VAT Number">
+            {client.vatNumber ? <CopyableField value={client.vatNumber} /> : null}
+          </FieldRow>
           <FieldRow label="UTR">{client.utr}</FieldRow>
           <FieldRow label="PAYE Reference">{client.payeReference}</FieldRow>
           <FieldRow label="Financial Year End">{fmtDate(client.financialYearEnd)}</FieldRow>
@@ -227,16 +240,6 @@ export default async function ClientDetailPage({
                 )}
               </span>
             </FieldRow>
-          )}
-          {canEdit && client.companyNumber && (
-            <div className="pt-2 border-t border-current/10 mt-3 flex items-center gap-3 flex-wrap">
-              <CompaniesHouseSyncButton clientId={client.id} />
-              {client.companiesHouseLastSyncedAt && (
-                <span className="text-xs opacity-60">
-                  Last synced {fmtDate(client.companiesHouseLastSyncedAt)}
-                </span>
-              )}
-            </div>
           )}
         </Section>
       )}
