@@ -5,6 +5,7 @@ import { redirect } from "next/navigation";
 import { prisma } from "@/lib/db";
 import { requireRole } from "@/lib/permissions";
 import { migrateFromClientMappings } from "@/lib/client-migration";
+import { fetchCompanyProfile } from "@/lib/companies-house";
 
 type ClientStatus = "LEAD" | "ONBOARDING" | "ACTIVE" | "DORMANT" | "OFFBOARDED";
 type AmlStatus = "NOT_REQUIRED" | "PENDING" | "PASSED" | "EXPIRED" | "REJECTED";
@@ -114,4 +115,46 @@ export async function runMigration() {
   const result = await migrateFromClientMappings();
   revalidatePath("/clients");
   return result;
+}
+
+export interface CompaniesHouseSyncResult {
+  ok: boolean;
+  companyName?: string;
+  syncedAt?: string;
+  error?: string;
+}
+
+// Refresh Companies House data for a single client. Callable from the
+// detail page's sync button. Returns a structured result rather than
+// throwing so the UI can show a friendly error inline.
+export async function syncCompaniesHouseForClient(
+  clientId: string,
+): Promise<CompaniesHouseSyncResult> {
+  await requireRole("MANAGER");
+  const client = await prisma.client.findUnique({
+    where: { id: clientId },
+    select: { id: true, companyNumber: true },
+  });
+  if (!client) return { ok: false, error: "Client not found" };
+  if (!client.companyNumber) {
+    return { ok: false, error: "No company number set on this client" };
+  }
+  try {
+    const profile = await fetchCompanyProfile(client.companyNumber);
+    const now = new Date();
+    await prisma.client.update({
+      where: { id: clientId },
+      data: {
+        registeredAddress: profile.registeredAddress,
+        nextYearEnd: profile.nextYearEnd,
+        nextAccountsDue: profile.nextAccountsDue,
+        nextConfirmationStatementDue: profile.nextConfirmationStatementDue,
+        companiesHouseLastSyncedAt: now,
+      },
+    });
+    revalidatePath(`/clients/${clientId}`);
+    return { ok: true, companyName: profile.companyName, syncedAt: now.toISOString() };
+  } catch (e) {
+    return { ok: false, error: e instanceof Error ? e.message : String(e) };
+  }
 }
