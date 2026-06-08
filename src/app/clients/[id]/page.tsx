@@ -192,24 +192,20 @@ export default async function ClientDetailPage({
 
       {hasAddresses && (
         <Section title="Addresses">
-          {client.tradingAddress && (
-            <FieldRow label="Trading">
-              <pre className="font-sans whitespace-pre-wrap text-sm">{client.tradingAddress}</pre>
-            </FieldRow>
-          )}
-          {client.registeredAddress &&
-            client.registeredAddress !== client.tradingAddress && (
-              <FieldRow label="Registered">
-                <pre className="font-sans whitespace-pre-wrap text-sm">{client.registeredAddress}</pre>
-              </FieldRow>
+          <div className="grid sm:grid-cols-2 gap-3">
+            {client.tradingAddress && (
+              <AddressCard label="Trading" address={client.tradingAddress} />
             )}
-          {client.postalAddress &&
-            client.postalAddress !== client.tradingAddress &&
-            client.postalAddress !== client.registeredAddress && (
-              <FieldRow label="Postal">
-                <pre className="font-sans whitespace-pre-wrap text-sm">{client.postalAddress}</pre>
-              </FieldRow>
-            )}
+            {client.registeredAddress &&
+              client.registeredAddress !== client.tradingAddress && (
+                <AddressCard label="Registered" address={client.registeredAddress} />
+              )}
+            {client.postalAddress &&
+              client.postalAddress !== client.tradingAddress &&
+              client.postalAddress !== client.registeredAddress && (
+                <AddressCard label="Postal" address={client.postalAddress} />
+              )}
+          </div>
         </Section>
       )}
 
@@ -450,6 +446,42 @@ function FieldRow({
     <div className="grid grid-cols-[max-content_1fr] gap-x-4 gap-y-1 text-sm items-baseline">
       <span className="text-xs opacity-60">{label}</span>
       <div>{children}</div>
+    </div>
+  );
+}
+
+// Address card — one per address type (Trading / Registered / Postal),
+// laid out side by side in the Addresses section. Each carries a little
+// pin icon link that opens Google Maps in a new tab.
+function AddressCard({ label, address }: { label: string; address: string }) {
+  const mapsUrl = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(address)}`;
+  return (
+    <div className="rounded-lg border border-current/10 p-3 space-y-2">
+      <div className="flex items-center justify-between gap-2">
+        <span className="text-xs opacity-60">{label}</span>
+        <a
+          href={mapsUrl}
+          target="_blank"
+          rel="noopener noreferrer"
+          title="Open in Google Maps"
+          aria-label={`Open ${label} address in Google Maps`}
+          className="opacity-50 hover:opacity-100 transition-opacity"
+        >
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            viewBox="0 0 20 20"
+            fill="currentColor"
+            className="w-4 h-4"
+          >
+            <path
+              fillRule="evenodd"
+              d="M9.69 18.933l.003.001C9.89 19.02 10 19 10 19s.11.02.308-.066l.002-.001.006-.003.018-.008a5.741 5.741 0 00.281-.14c.186-.096.446-.24.757-.433.62-.384 1.445-.966 2.274-1.765C15.302 14.988 17 12.493 17 9A7 7 0 103 9c0 3.492 1.698 5.988 3.355 7.584a13.731 13.731 0 002.273 1.765 11.842 11.842 0 00.976.544l.062.029.018.008.006.003zM10 11.25a2.25 2.25 0 100-4.5 2.25 2.25 0 000 4.5z"
+              clipRule="evenodd"
+            />
+          </svg>
+        </a>
+      </div>
+      <pre className="font-sans whitespace-pre-wrap text-sm leading-relaxed">{address}</pre>
     </div>
   );
 }
