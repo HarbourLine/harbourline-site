@@ -53,12 +53,19 @@ model Client {
   phone             String?
   website           String?
   // Trading details
-  companyNumber     String?
-  vatNumber         String?
-  utr               String?      // UK Unique Taxpayer Reference
-  payeReference     String?
-  tradingAddress    String?
-  postalAddress     String?
+  companyNumber                  String?
+  // 6-character Companies House authentication code used for online
+  // filings. Treat as a secret — anyone holding it can file changes
+  // against the company. Plan to move to the encrypted credentials
+  // vault when that ships in step 6.
+  companiesHouseAuthCode         String?
+  vatNumber                      String?
+  utr                            String?      // UK Unique Taxpayer Reference
+  payeReference                  String?
+  // HMRC employer's accounts office reference (format like 123PA12345678).
+  accountsOfficeReference        String?
+  tradingAddress                 String?
+  postalAddress                  String?
   financialYearEnd  DateTime?    // day of year matters; year ignored at display time
   // Commercial
   defaultHourlyRate Float?

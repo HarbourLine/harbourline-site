@@ -44,7 +44,13 @@ function commonFields(formData: FormData) {
     status,
     amlStatus,
     companyNumber: String(formData.get("companyNumber") ?? "").trim() || null,
+    companiesHouseAuthCode:
+      String(formData.get("companiesHouseAuthCode") ?? "").trim() || null,
     vatNumber: String(formData.get("vatNumber") ?? "").trim() || null,
+    utr: String(formData.get("utr") ?? "").trim() || null,
+    payeReference: String(formData.get("payeReference") ?? "").trim() || null,
+    accountsOfficeReference:
+      String(formData.get("accountsOfficeReference") ?? "").trim() || null,
     tradingAddress: String(formData.get("tradingAddress") ?? "").trim() || null,
     financialYearEnd: parseDate(formData.get("financialYearEnd")),
     defaultHourlyRate: parseFloatOrNull(formData.get("defaultHourlyRate")),

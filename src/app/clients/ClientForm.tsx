@@ -61,9 +61,29 @@ export function ClientForm({ action, client, staff, submitLabel }: Props) {
         defaultValue={client?.companyNumber ?? ""}
       />
       <Field
+        name="companiesHouseAuthCode"
+        label="Companies House Authentication Code"
+        defaultValue={client?.companiesHouseAuthCode ?? ""}
+      />
+      <Field
         name="vatNumber"
         label="VAT Number"
         defaultValue={client?.vatNumber ?? ""}
+      />
+      <Field
+        name="utr"
+        label="UTR"
+        defaultValue={client?.utr ?? ""}
+      />
+      <Field
+        name="payeReference"
+        label="PAYE Reference"
+        defaultValue={client?.payeReference ?? ""}
+      />
+      <Field
+        name="accountsOfficeReference"
+        label="Accounts Office Reference"
+        defaultValue={client?.accountsOfficeReference ?? ""}
       />
 
       <label className="text-sm sm:col-span-2">
