@@ -451,37 +451,40 @@ function FieldRow({
 }
 
 // Address card — one per address type (Trading / Registered / Postal),
-// laid out side by side in the Addresses section. Each carries a little
-// pin icon link that opens Google Maps in a new tab.
+// laid out side by side in the Addresses section. The thumbnail is an
+// iframe pointing at Google Maps' legacy embed URL, which doesn't need
+// an API key. Clicking it opens the full interactive map in a new tab.
 function AddressCard({ label, address }: { label: string; address: string }) {
-  const mapsUrl = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(address)}`;
+  const encoded = encodeURIComponent(address);
+  const mapsUrl = `https://www.google.com/maps/search/?api=1&query=${encoded}`;
+  const embedUrl = `https://maps.google.com/maps?q=${encoded}&z=14&output=embed`;
   return (
     <div className="rounded-lg border border-current/10 p-3 space-y-2">
-      <div className="flex items-center justify-between gap-2">
-        <span className="text-xs opacity-60">{label}</span>
+      <span className="text-xs opacity-60">{label}</span>
+      <div className="flex gap-3 items-start">
+        <pre className="font-sans whitespace-pre-wrap text-sm leading-relaxed flex-1 min-w-0">
+          {address}
+        </pre>
         <a
           href={mapsUrl}
           target="_blank"
           rel="noopener noreferrer"
           title="Open in Google Maps"
           aria-label={`Open ${label} address in Google Maps`}
-          className="opacity-50 hover:opacity-100 transition-opacity"
+          className="relative shrink-0 block rounded-md overflow-hidden border border-current/10 hover:ring-2 hover:ring-current/20 transition"
         >
-          <svg
-            xmlns="http://www.w3.org/2000/svg"
-            viewBox="0 0 20 20"
-            fill="currentColor"
-            className="w-4 h-4"
-          >
-            <path
-              fillRule="evenodd"
-              d="M9.69 18.933l.003.001C9.89 19.02 10 19 10 19s.11.02.308-.066l.002-.001.006-.003.018-.008a5.741 5.741 0 00.281-.14c.186-.096.446-.24.757-.433.62-.384 1.445-.966 2.274-1.765C15.302 14.988 17 12.493 17 9A7 7 0 103 9c0 3.492 1.698 5.988 3.355 7.584a13.731 13.731 0 002.273 1.765 11.842 11.842 0 00.976.544l.062.029.018.008.006.003zM10 11.25a2.25 2.25 0 100-4.5 2.25 2.25 0 000 4.5z"
-              clipRule="evenodd"
-            />
-          </svg>
+          <iframe
+            src={embedUrl}
+            loading="lazy"
+            title={`Map of ${label} address`}
+            className="block w-28 h-28 pointer-events-none"
+          />
+          {/* Transparent overlay guarantees the click goes to the link
+              even on browsers that don't fully honour pointer-events on
+              iframes. */}
+          <span className="absolute inset-0" aria-hidden="true" />
         </a>
       </div>
-      <pre className="font-sans whitespace-pre-wrap text-sm leading-relaxed">{address}</pre>
     </div>
   );
 }
