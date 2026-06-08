@@ -120,9 +120,11 @@ export default async function ClientDetailPage({
     client.tradingAddress || client.postalAddress || client.registeredAddress;
   const hasStatutory =
     client.companyNumber ||
+    client.companiesHouseAuthCode ||
     client.vatNumber ||
     client.utr ||
     client.payeReference ||
+    client.accountsOfficeReference ||
     client.financialYearEnd ||
     client.nextYearEnd ||
     client.nextAccountsDue ||
@@ -210,32 +212,60 @@ export default async function ClientDetailPage({
       )}
 
       {hasStatutory && (
-        <Section title="Statutory & Tax">
-          <FieldRow label="Company Number">
-            {client.companyNumber ? <CopyableField value={client.companyNumber} /> : null}
-          </FieldRow>
-          <FieldRow label="VAT Number">
-            {client.vatNumber ? <CopyableField value={client.vatNumber} /> : null}
-          </FieldRow>
-          <FieldRow label="UTR">{client.utr}</FieldRow>
-          <FieldRow label="PAYE Reference">{client.payeReference}</FieldRow>
-          <FieldRow label="Financial Year End">{fmtDate(client.financialYearEnd)}</FieldRow>
-          <FieldRow label="Next Year End">{fmtDate(client.nextYearEnd)}</FieldRow>
-          <FieldRow label="Accounts Due">{fmtDate(client.nextAccountsDue)}</FieldRow>
-          <FieldRow label="Confirmation Statement Due">
-            {fmtDate(client.nextConfirmationStatementDue)}
-          </FieldRow>
+        <Section title="Companies House & HMRC">
+          <div className="grid sm:grid-cols-2 gap-x-6 gap-y-4">
+            <div className="space-y-2">
+              <h3 className="text-[11px] font-medium uppercase tracking-wider opacity-60">
+                Companies House
+              </h3>
+              <FieldRow label="Company Number">
+                {client.companyNumber ? <CopyableField value={client.companyNumber} /> : null}
+              </FieldRow>
+              <FieldRow label="Authentication Code">
+                {client.companiesHouseAuthCode ? (
+                  <CopyableField value={client.companiesHouseAuthCode} />
+                ) : null}
+              </FieldRow>
+              <FieldRow label="Financial Year End">{fmtDate(client.financialYearEnd)}</FieldRow>
+              <FieldRow label="Next Year End">{fmtDate(client.nextYearEnd)}</FieldRow>
+              <FieldRow label="Accounts Due">{fmtDate(client.nextAccountsDue)}</FieldRow>
+              <FieldRow label="Confirmation Statement Due">
+                {fmtDate(client.nextConfirmationStatementDue)}
+              </FieldRow>
+            </div>
+            <div className="space-y-2">
+              <h3 className="text-[11px] font-medium uppercase tracking-wider opacity-60">
+                HMRC
+              </h3>
+              <FieldRow label="VAT Number">
+                {client.vatNumber ? <CopyableField value={client.vatNumber} /> : null}
+              </FieldRow>
+              <FieldRow label="UTR">
+                {client.utr ? <CopyableField value={client.utr} /> : null}
+              </FieldRow>
+              <FieldRow label="PAYE Reference">
+                {client.payeReference ? <CopyableField value={client.payeReference} /> : null}
+              </FieldRow>
+              <FieldRow label="Accounts Office Reference">
+                {client.accountsOfficeReference ? (
+                  <CopyableField value={client.accountsOfficeReference} />
+                ) : null}
+              </FieldRow>
+            </div>
+          </div>
           {client.amlStatus !== "NOT_REQUIRED" && (
-            <FieldRow label="AML">
-              <span className="inline-flex items-center gap-2">
-                <span className={`inline-block text-xs px-2 py-0.5 rounded-full ${AML_PILL[client.amlStatus]}`}>
-                  {AML_LABEL[client.amlStatus]}
+            <div className="pt-3 mt-3 border-t border-current/10">
+              <FieldRow label="AML">
+                <span className="inline-flex items-center gap-2">
+                  <span className={`inline-block text-xs px-2 py-0.5 rounded-full ${AML_PILL[client.amlStatus]}`}>
+                    {AML_LABEL[client.amlStatus]}
+                  </span>
+                  {client.amlExpiresAt && (
+                    <span className="opacity-70 text-xs">expires {fmtDate(client.amlExpiresAt)}</span>
+                  )}
                 </span>
-                {client.amlExpiresAt && (
-                  <span className="opacity-70 text-xs">expires {fmtDate(client.amlExpiresAt)}</span>
-                )}
-              </span>
-            </FieldRow>
+              </FieldRow>
+            </div>
           )}
         </Section>
       )}
